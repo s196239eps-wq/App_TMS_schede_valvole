@@ -269,6 +269,70 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
 .share-btn:hover { border-color:var(--red); background:#fff5f5; }
 .share-icon { font-size:18px; width:26px; text-align:center; }
 
+/* ===== RESPONSIVE / ADAPTIVE ===== */
+@media (max-width: 600px) {
+  .home-logo { padding:12px 16px; margin-bottom:14px; }
+  .home-logo img { max-width:100px; }
+  .home-title { font-size:16px; }
+  .btn-primary { padding:12px 20px; font-size:15px; }
+  .btn-secondary { padding:10px 18px; font-size:13px; }
+  .saved-list { max-width:100%; }
+  .saved-item { padding:9px 10px; flex-wrap:wrap; }
+  .saved-item-actions { margin-top:6px; width:100%; justify-content:flex-end; }
+  .top-bar { padding:7px 8px; gap:6px; }
+  .top-bar-title { font-size:12px; min-width:50px; }
+  .top-bar-actions { gap:3px; }
+  .btn-sm { padding:5px 8px; font-size:11px; }
+  #form-screen { padding-bottom:60px; }
+  .doc-header-inner { grid-template-columns:60px 1fr 110px; }
+  .doc-header-logo img { max-width:54px; max-height:40px; }
+  .doc-header-center h2 { font-size:11px; letter-spacing:0; }
+  .header-right-top { font-size:10px; padding:3px 5px; }
+  .header-right-ord { font-size:11px; padding:3px 5px; }
+  .doc-header-bottom { grid-template-columns:1fr; }
+  .header-row { border-right:none !important; }
+  .header-label { font-size:11px; min-width:56px; padding:4px 6px; }
+  .header-value { font-size:11px; padding:4px 6px; }
+  .header-value input { font-size:11px; }
+  .section-header { font-size:12px; padding:4px 8px; }
+  .dati-label { width:90px; font-size:11px; padding:4px 6px; }
+  .dati-input { font-size:11px; padding:4px 6px; }
+  .ops-table { grid-template-columns:1fr; }
+  .ops-item { border-right:none; font-size:11px; }
+  .ops-add-row { flex-direction:column; gap:4px; }
+  .ops-add-row input { width:100%; }
+  .tenute-table th, .tenute-table td input { font-size:11px; }
+  .note-area textarea { font-size:12px; min-height:70px; }
+  .photo-controls { flex-direction:column; align-items:flex-start; gap:6px; }
+  .photo-resize { width:100%; }
+  .photo-resize input[type=range] { flex:1; width:100%; }
+  .photo-table td { display:block; width:100% !important; }
+  .modal { padding:14px; max-width:95vw; }
+  .modal h3 { font-size:15px; }
+  .modal label { font-size:11px; }
+  .modal input, .modal select, .modal textarea { font-size:12px; padding:8px; }
+  .modal-actions { flex-direction:column; gap:6px; }
+  .modal-actions .btn-sm { width:100%; text-align:center; }
+  .share-menu { width:95%; padding:14px; }
+  .share-btn { padding:9px 10px; font-size:12px; }
+  .page-footer-row { flex-direction:column; gap:6px; padding:4px 10px 0; }
+  .page-footer-field { flex-wrap:wrap; }
+  .page-footer-field input { min-width:60px; font-size:11px; }
+  .cloud-bar-mini { flex-wrap:wrap; gap:4px; padding:6px 10px; }
+  .cloud-section-title { font-size:13px; padding:6px 10px; }
+}
+@media (min-width:601px) and (max-width:900px) {
+  #form-screen { max-width:100%; padding:0 8px 60px; }
+  .doc-header-inner { grid-template-columns:75px 1fr 140px; }
+  .doc-header-bottom { grid-template-columns:1fr 1fr; }
+  .ops-table { grid-template-columns:1fr 1fr; }
+}
+@media (min-width:901px) {
+  #home-screen { padding:30px 40px 40px; }
+  .saved-list { max-width:600px; }
+  #form-screen { max-width:900px; margin:0 auto; }
+}
+
 /* PRINT / PDF: fixed header+footer */
 @media print {
   body { background:white; }
@@ -449,6 +513,13 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
     <div class="modal-actions">
       <button class="btn-sm outline" onclick="closeModal('client-modal')">Chiudi</button>
       <button class="btn-sm success" onclick="addClient()">+ Aggiungi</button>
+    </div>
+    <hr style="margin:12px 0;border-color:#eee;">
+    <div style="font-weight:700;font-size:13px;margin-bottom:8px;">📂 Importa / Esporta Template</div>
+    <div class="modal-actions" style="margin-top:6px;">
+      <button class="btn-sm" style="background:#8e44ad;" onclick="document.getElementById('import-tpl-inp').click()">📥 Importa Template</button>
+      <input type="file" id="import-tpl-inp" accept=".json" style="display:none" onchange="importTemplate(this)">
+      <button class="btn-sm" style="background:#2980b9;" onclick="exportAllTemplates()">📤 Esporta Tutti</button>
     </div>
   </div>
 </div>
@@ -837,6 +908,7 @@ function renderClientListModal() {
         <div class="client-card-type">${tm[c.type]||c.type}${hasCustom?' — <span style="color:#27ae60;font-size:11px;">template personalizzato</span>':''}</div>
       </div>
       <button class="btn-sm" style="background:#2980b9;margin-right:4px;" onclick="openTemplateEditor('${c.id}')">✏️ Template</button>
+      <button class="btn-sm" style="background:#8e44ad;margin-right:4px;" onclick="exportSingleTemplate('${c.id}')">📤</button>
       <button class="btn-sm danger" onclick="removeClient('${c.id}')">🗑</button>
     </div>`;
   }).join('');
@@ -853,6 +925,83 @@ function removeClient(id){
   if(!confirm('Rimuovere?'))return;
   clients=clients.filter(c=>c.id!==id);
   saveClientsToStorage(); renderClientListModal();
+}
+
+// ── Importa / Esporta Template ───────────────────────────
+function exportSingleTemplate(id){
+  const c = clients.find(x=>x.id===id);
+  if(!c) return;
+  const data = JSON.stringify(c, null, 2);
+  const blob = new Blob([data],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url;
+  a.download='template_'+c.name.replace(/\s+/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},500);
+  showToast('📤 Template "'+c.name+'" esportato!','#2980b9');
+}
+
+function exportAllTemplates(){
+  const data = JSON.stringify(clients, null, 2);
+  const blob = new Blob([data],{type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url;
+  a.download='templates_TMS_'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},500);
+  showToast('📤 Tutti i template esportati!','#2980b9');
+}
+
+function importTemplate(inp){
+  if(!inp.files||!inp.files.length)return;
+  const file=inp.files[0];
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const parsed=JSON.parse(e.target.result);
+      let imported=0;
+      // Supporta sia array (export multiplo) sia oggetto singolo
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      items.forEach(tpl=>{
+        if(!tpl || !tpl.name || !tpl.type) return;
+        // Verifica se esiste già un template con lo stesso nome
+        const existing = clients.find(c=>c.name===tpl.name);
+        if(existing){
+          if(confirm('Il template "'+tpl.name+'" esiste già. Vuoi sovrascriverlo?')){
+            existing.type = tpl.type;
+            existing.customOps = tpl.customOps || null;
+            existing.customTenute = tpl.customTenute || null;
+            imported++;
+          }
+        } else {
+          // Genera nuovo ID se necessario
+          const newTpl = {
+            id: tpl.id || 'c'+Date.now()+'_'+Math.random().toString(36).substr(2,4),
+            name: tpl.name,
+            type: tpl.type,
+            customOps: tpl.customOps || null,
+            customTenute: tpl.customTenute || null
+          };
+          clients.push(newTpl);
+          imported++;
+        }
+      });
+      if(imported>0){
+        saveClientsToStorage();
+        renderClientListModal();
+        showToast('✅ '+imported+' template importat'+(imported>1?'i':'o')+' con successo!','#27ae60');
+      } else {
+        showToast('⚠️ Nessun template importato','#e67e22');
+      }
+    }catch(err){
+      console.error('Errore import template:',err);
+      showToast('❌ Errore nel file: formato non valido','#c0392b');
+    }
+    inp.value='';
+  };
+  reader.readAsText(file);
 }
 
 // =================== TEMPLATE EDITOR ===================
