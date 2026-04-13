@@ -335,13 +335,14 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
 
 /* PRINT / PDF: fixed header+footer */
 /* ── REPORT STYLES ──────────────────────────── */
-.report-client-group { margin-bottom:18px; }
-.report-client-header { background:#2c3e50;color:white;padding:8px 14px;font-weight:700;font-size:15px;border-radius:6px 6px 0 0; }
-.report-table { width:100%;border-collapse:collapse;font-size:13px; }
-.report-table th { background:#34495e;color:white;padding:6px 8px;text-align:left;font-size:12px; }
-.report-table td { padding:5px 8px;border-bottom:1px solid #eee; }
-.report-table tr:nth-child(even) { background:#f8f9fa; }
-.report-table tr:hover { background:#eaf2f8; }
+.report-client-group { margin-bottom:18px;background:#ffffff;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.12);overflow:hidden; }
+.report-client-header { background:#2c3e50;color:white;padding:10px 14px;font-weight:700;font-size:15px; }
+.report-table { width:100%;border-collapse:collapse;font-size:13px;background:#ffffff; }
+.report-table th { background:#34495e;color:white;padding:8px 10px;text-align:left;font-size:12px;border-bottom:2px solid #2c3e50; }
+.report-table td { padding:7px 10px;border-bottom:1px solid #dde1e6;color:#222; }
+.report-table tr:nth-child(odd) { background:#ffffff; }
+.report-table tr:nth-child(even) { background:#eef2f7; }
+.report-table tr:hover { background:#d4e3f5; }
 .report-del-btn { background:#e74c3c;color:white;border:none;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer; }
 .report-del-btn:hover { background:#c0392b; }
 
@@ -519,6 +520,7 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
       <option value="A2A">Scheda Standard (A2A)</option>
       <option value="ENEL_T">Enel Termico</option>
       <option value="ENEL_P">Enel a Sfera</option>
+      <option value="SICUREZZA">Valvola di Sicurezza</option>
     </select>
     <div class="modal-actions">
       <button class="btn-sm outline" onclick="closeModal('new-modal')">Annulla</button>
@@ -540,6 +542,7 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
       <option value="A2A">Scheda Standard (A2A)</option>
       <option value="ENEL_T">Enel Termico</option>
       <option value="ENEL_P">Enel a Sfera</option>
+      <option value="SICUREZZA">Valvola di Sicurezza</option>
     </select>
     <div class="modal-actions">
       <button class="btn-sm outline" onclick="closeModal('client-modal')">Chiudi</button>
@@ -557,7 +560,7 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
 
 <!-- REPORT MODAL -->
 <div class="modal-overlay" id="report-modal">
-  <div class="modal-content" style="max-width:900px;width:95%;max-height:90vh;overflow:auto;">
+  <div class="modal-content" style="max-width:900px;width:95%;max-height:90vh;overflow:auto;background:#f0f2f5;">
     <h3>📊 Report Lavori — <span id="report-date"></span></h3>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
       <button class="btn-sm success" onclick="printReport()">🖨️ Stampa Report</button>
@@ -803,6 +806,49 @@ function getOpsEnelP() { return [
 ]; }
 
 function newSchedaData(clientId, clientName, type) {
+  // ID univoco: timestamp + random suffix per evitare collisioni
+  const uid = 'scheda_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
+
+  // ─── TIPO SICUREZZA ─────────────────────────────────────────
+  if(type === 'SICUREZZA') {
+    const lettere = ['A','B','C','D','E','F','G','H','I','L','M','N','O','P','Q','R','S','T','U','V','Z'];
+    const matrice = {};
+    lettere.forEach(l => { matrice[l] = {ripristino:false,rettifica:false,costruzione:false,sostituzione:false,fornitura:false}; });
+    return {
+      id: uid, clientId, clientName, type,
+      createdAt: new Date().toISOString(),
+      // Info generali
+      stabilimento:'', impianto:'', sigla:'', disegno:'', lavoro:'',
+      apparecchioProtetto:'', ubicazione:'', fermata:'', costruttore:'', modello:'',
+      matricola:'', sizeIn:'', ratingIn:'', sizeOut:'', ratingOut:'',
+      pressTaratura:'', orifizio:'', fluido:'', anno:'', certTarN:'', dataCert:'',
+      // Prove taratura
+      scattoPrima:'', scattoDopo:'', richiusuraPrima:'', richiusuraDopo:'',
+      // Stato usura (buono/discreto/pessimo)
+      usura: {corpo:'',sede:'',otturatore:'',stelo:'',molla:''},
+      // Interventi eseguiti (checkbox)
+      interventi: {smontaggio:false,revisioneBase:false,revInOpera:false,rimontaggio:false,taraturaIspesl:false,sabbiatura:false,montaggioCieche:false,revisionePilota:false},
+      // Matrice lavorazioni A-Z
+      matrice: matrice,
+      matriceAltro:'',
+      // Note
+      note:'',
+      // Materiali sostituiti (A-E)
+      materiali: {A:'',B:'',C:'',D:'',E:''},
+      // Indicazioni fermata successiva (1-5)
+      indicazioni: {'1':'','2':'','3':'','4':'','5':''},
+      // Footer
+      inizioRevisione:'', fineRevisione:'', operatore:'', controllo:'',
+      // Foto
+      photos: [],
+      // Comuni
+      tag:'', commessa:'', ord:'', valvola:'', dn:'', classe:'', tipologia:'',
+      footerData:'', footerTimbro:'',
+      completed: false, completedAt: null, completedBy: null
+    };
+  }
+
+  // ─── TIPI STANDARD ──────────────────────────────────────────
   // Cerca il client per usare template personalizzati se disponibili
   const client = clients.find(c => c.id === clientId);
 
@@ -820,9 +866,6 @@ function newSchedaData(clientId, clientName, type) {
   const tenute = hasN
     ? tenuteSource.map(nome => ({nome, n:'', materiale:'', dimensioni:''}))
     : tenuteSource.map(nome => ({nome, materiale:'', dimensioni:''}));
-
-  // ID univoco: timestamp + random suffix per evitare collisioni
-  const uid = 'scheda_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
 
   return {
     id: uid, clientId, clientName, type,
@@ -904,6 +947,18 @@ function normalizeScheda(s) {
   if(typeof s.completed !== 'boolean') s.completed = false;
   if(!s.completedAt) s.completedAt = null;
   if(!s.completedBy) s.completedBy = null;
+  // Normalizza campi specifici SICUREZZA
+  if(s.type === 'SICUREZZA') {
+    if(!s.usura || typeof s.usura !== 'object') s.usura = {corpo:'',sede:'',otturatore:'',stelo:'',molla:''};
+    if(!s.interventi || typeof s.interventi !== 'object') s.interventi = {smontaggio:false,revisioneBase:false,revInOpera:false,rimontaggio:false,taraturaIspesl:false,sabbiatura:false,montaggioCieche:false,revisionePilota:false};
+    if(!s.matrice || typeof s.matrice !== 'object') {
+      const lettere=['A','B','C','D','E','F','G','H','I','L','M','N','O','P','Q','R','S','T','U','V','Z'];
+      s.matrice={};
+      lettere.forEach(l=>{s.matrice[l]={ripristino:false,rettifica:false,costruzione:false,sostituzione:false,fornitura:false};});
+    }
+    if(!s.materiali || typeof s.materiali !== 'object') s.materiali = {A:'',B:'',C:'',D:'',E:''};
+    if(!s.indicazioni || typeof s.indicazioni !== 'object') s.indicazioni = {'1':'','2':'','3':'','4':'','5':''};
+  }
   return s;
 }
 
@@ -943,7 +998,7 @@ function goHome() {
 // CLIENT MANAGER
 function showClientManager(){ renderClientListModal(); openModal('client-modal'); }
 function renderClientListModal() {
-  const tm={A2A:'A2A Standard',ENEL_T:'Enel Termico',ENEL_P:'Enel a Sfera'};
+  const tm={A2A:'A2A Standard',ENEL_T:'Enel Termico',ENEL_P:'Enel a Sfera',SICUREZZA:'Valvola di Sicurezza'};
   document.getElementById('client-list-modal').innerHTML=clients.map(c=>{
     const hasCustom = c.customOps || c.customTenute;
     return `<div class="client-card">
@@ -1107,6 +1162,8 @@ function clearAllReport(){
 }
 
 function openReportModal(){
+  const pwd = prompt('🔒 Inserisci la password per accedere al Report:');
+  if(pwd !== '2025'){ showToast('❌ Password errata','#c0392b'); return; }
   loadReport();
   // Aggiorna report con le schede locali e cloud attuali (solo upsert, non rimuove)
   savedSchedeList.forEach(s => upsertReportEntry(s));
@@ -1165,6 +1222,11 @@ function printReport(){
     window.print();
     setTimeout(()=>{ document.body.classList.remove('printing-report'); }, 500);
   }, 200);
+}
+
+// =================== SCHEDA VALVOLA DI SICUREZZA ===================
+function openSchedaSicurezza(){
+  window.open('scheda_sicurezza.html','_blank');
 }
 
 // =================== TEMPLATE EDITOR ===================
@@ -1276,7 +1338,11 @@ function showFormScreen(){
   document.getElementById('form-screen').style.display='block';
   document.getElementById('form-title').textContent=currentScheda.clientName||'—';
   updateCompletedUI();
-  renderScheda();
+  if(currentScheda.type === 'SICUREZZA') {
+    renderSchedaSicurezza();
+  } else {
+    renderScheda();
+  }
 }
 
 function buildPhotosGrid(photos){
@@ -1628,6 +1694,220 @@ async function saveScheda(){
     showToast('❌ Errore salvataggio','#c0392b');
   }
 }
+
+// =================== RENDER SCHEDA SICUREZZA ===================
+const _imgVedB64 = 'data:image/jpeg;base64,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';
+const _imgValvB64 = '__IMG_VALV__';
+
+function renderSchedaSicurezza(){
+  const s = currentScheda;
+  if(!s.usura) s.usura={corpo:'',sede:'',otturatore:'',stelo:'',molla:''};
+  if(!s.interventi) s.interventi={smontaggio:false,revisioneBase:false,revInOpera:false,rimontaggio:false,taraturaIspesl:false,sabbiatura:false,montaggioCieche:false,revisionePilota:false};
+  if(!s.matrice) { const lettere=['A','B','C','D','E','F','G','H','I','L','M','N','O','P','Q','R','S','T','U','V','Z']; s.matrice={}; lettere.forEach(l=>{s.matrice[l]={ripristino:false,rettifica:false,costruzione:false,sostituzione:false,fornitura:false};}); }
+  if(!s.materiali) s.materiali={A:'',B:'',C:'',D:'',E:''};
+  if(!s.indicazioni) s.indicazioni={'1':'','2':'','3':'','4':'','5':''};
+
+  const lettere=['A','B','C','D','E','F','G','H','I','L','M','N','O','P','Q','R','S','T','U','V','Z'];
+  const legenda={A:'FLANGIA DI INGRESSO',B:'FLANGIA DI USCITA',C:'FILETTAT. ALLOGGIO SEDE',D:'FLANGIA ACCOPP. CORPO',E:'FLANGIA ACC. CAPPELLO',F:'FLANGIA ACC. CAPPUCCIO',G:'SEDE',H:'GHIERA DI REGISTRAZ.',I:'OTTURATORE',L:'ANELLO ELASTICO',M:'PORTAOTTURATORE',N:'SOFFIETTO',O:'GUIDA STELO',P:'DISCO GUIDAMOLLA',Q:'MOLLA',R:'STELO',S:'VITE DI TARATURA',T:'GHIERA',U:'GUARNIZIONI',V:'VITI DEL CAPPELLO',Z:'VITI DEL CAPPUCCIO'};
+
+  function inp(field,ph,style){return `<input value="${s[field]||''}" onchange="currentScheda['${field}']=this.value" placeholder="${ph||'...'}" style="width:100%;border:none;background:transparent;font-size:8.5px;font-weight:700;${style||''}">`;}
+  function chkI(field){return `<input type="checkbox" ${s.interventi[field]?'checked':''} onchange="currentScheda.interventi['${field}']=this.checked" style="width:13px;height:13px;cursor:pointer;accent-color:#c0392b;">`;}
+
+  // Matrice lavorazioni
+  const tipiLav=['ripristino','rettifica','costruzione','sostituzione','fornitura'];
+  const tipiLavLabel=['RIPRISTINO','RETTIFICA','COSTRUZIONE','SOSTITUZIONE','FORNITURA'];
+  let matriceRows='';
+  tipiLav.forEach((tipo,ti)=>{
+    matriceRows+=`<tr><td style="background:#f9f9f9;font-size:6.5px;font-weight:600;white-space:nowrap;">${tipiLavLabel[ti]}</td>`;
+    lettere.forEach(l=>{
+      matriceRows+=`<td style="text-align:center;width:20px;padding:0;"><input type="checkbox" ${s.matrice[l][tipo]?'checked':''} onchange="currentScheda.matrice['${l}']['${tipo}']=this.checked" style="width:13px;height:13px;cursor:pointer;accent-color:#c0392b;"></td>`;
+    });
+    matriceRows+='</tr>';
+  });
+
+  // Radio stato usura
+  function radioU(comp){
+    return ['buono','discreto','pessimo'].map(v=>`<td style="text-align:center"><input type="radio" name="u_${comp}" ${s.usura[comp]===v?'checked':''} onchange="currentScheda.usura['${comp}']='${v}'" style="width:14px;height:14px;cursor:pointer;accent-color:#c0392b;"></td>`).join('');
+  }
+
+  // Legenda table (4 colonne)
+  const legRows=[['A','G','O','U'],['B','H','P','V'],['C','I','Q','Z'],['D','L','R',''],['E','M','S',''],['F','N','T','']];
+  let legendaHTML='';
+  legRows.forEach(row=>{
+    legendaHTML+='<tr>';
+    row.forEach(l=>{
+      if(l) legendaHTML+=`<td style="font-weight:bold;text-align:center;width:16px;background:#f5f5f5;font-size:6.5px;">${l}</td><td style="font-size:6.5px;padding:1px 3px;">${legenda[l]||''}</td>`;
+      else legendaHTML+='<td></td><td></td>';
+    });
+    legendaHTML+='</tr>';
+  });
+
+  // Foto
+  const photosGrid = buildPhotosGrid(s.photos||[]);
+
+  const html = `
+<style>
+.sic-page{background:white;padding:8mm 10mm;font-family:Arial,sans-serif;font-size:9px;color:#222;}
+.sic-hdr-row{display:flex;align-items:stretch;border:2px solid #c0392b;margin-bottom:4px;min-height:55px;}
+.sic-hdr-logo{width:70px;border-right:2px solid #c0392b;display:flex;align-items:center;justify-content:center;padding:3px;}
+.sic-hdr-logo img{max-width:58px;max-height:48px;}
+.sic-hdr-title{flex:1;text-align:center;font-size:13px;font-weight:bold;color:#c0392b;padding:6px 8px;display:flex;align-items:center;justify-content:center;}
+.sic-hdr-schema{width:70px;border-left:2px solid #c0392b;display:flex;align-items:center;justify-content:center;padding:3px;}
+.sic-hdr-schema img{max-width:58px;max-height:50px;}
+.sic-sh{background:#c0392b;color:white;font-weight:bold;font-size:10px;padding:3px 8px;margin:5px 0 2px 0;text-transform:uppercase;}
+.sic-tbl{width:100%;border-collapse:collapse;margin-bottom:2px;}
+.sic-tbl td,.sic-tbl th{border:1px solid #bbb;padding:2px 4px;vertical-align:middle;font-size:7.5px;}
+.sic-tbl th{background:#f5f5f5;font-weight:bold;text-align:center;}
+.sic-lbl{background:#f9f9f9;font-size:6.5px;color:#555;font-weight:600;white-space:nowrap;}
+.sic-val{font-weight:bold;font-size:8.5px;min-height:16px;}
+.sic-note{border:1px solid #bbb;min-height:45px;padding:3px 5px;font-size:8px;}
+.sic-foot-row{display:flex;border-top:2px solid #c0392b;margin-top:5px;}
+.sic-foot-cell{flex:1;border-right:1px solid #bbb;padding:2px 5px;}
+.sic-foot-cell:last-child{border-right:none;}
+.sic-fl{font-size:6.5px;color:#888;}
+.sic-fv{font-size:8px;font-weight:bold;min-height:14px;}
+.sic-2col{display:flex;gap:4px;margin-top:2px;}
+.sic-2col>div{flex:1;}
+.sic-mhdr{font-size:6.5px;font-weight:bold;text-align:center;width:20px;background:#f0f0f0;padding:1px!important;}
+</style>
+
+<!-- PAGINA 1 -->
+<div class="sic-page">
+  <div class="sic-hdr-row">
+    <div class="sic-hdr-logo"><img src="${_imgVedB64}" alt="VED"></div>
+    <div class="sic-hdr-title">SCHEDA REVISIONE VALVOLA DI SICUREZZA</div>
+    <div class="sic-hdr-schema"><img src="${_imgVedB64}" alt="VED"></div>
+  </div>
+
+  <div class="sic-sh">INFORMAZIONI GENERALI</div>
+  <table class="sic-tbl"><tr>
+    <td class="sic-lbl">CLIENTE</td><td class="sic-val">${inp('clientName','Cliente')}</td>
+    <td class="sic-lbl">STABILIMENTO</td><td class="sic-val">${inp('stabilimento','...')}</td>
+    <td class="sic-lbl">IMPIANTO</td><td class="sic-val">${inp('impianto','...')}</td>
+    <td class="sic-lbl">SIGLA</td><td class="sic-val">${inp('sigla','...')}</td>
+  </tr></table>
+  <table class="sic-tbl"><tr>
+    <td class="sic-lbl">DISEGNO</td><td class="sic-val">${inp('disegno','...')}</td>
+    <td class="sic-lbl">LAVORO</td><td class="sic-val">${inp('lavoro','...')}</td>
+    <td class="sic-lbl">APP. PROTETTO</td><td class="sic-val" colspan="2">${inp('apparecchioProtetto','...')}</td>
+  </tr></table>
+  <table class="sic-tbl"><tr>
+    <td class="sic-lbl">UBICAZIONE</td><td class="sic-val">${inp('ubicazione','...')}</td>
+    <td class="sic-lbl">FERMATA</td><td class="sic-val">${inp('fermata','...')}</td>
+    <td class="sic-lbl">COSTRUTTORE</td><td class="sic-val">${inp('costruttore','...')}</td>
+    <td class="sic-lbl">MODELLO</td><td class="sic-val">${inp('modello','...')}</td>
+  </tr></table>
+  <table class="sic-tbl"><tr>
+    <td class="sic-lbl">MATRICOLA</td><td class="sic-val">${inp('matricola','...')}</td>
+    <td class="sic-lbl">SIZE IN</td><td class="sic-val" style="width:6%">${inp('sizeIn','...')}</td>
+    <td class="sic-lbl">RATING IN</td><td class="sic-val" style="width:6%">${inp('ratingIn','...')}</td>
+    <td class="sic-lbl">SIZE OUT</td><td class="sic-val" style="width:6%">${inp('sizeOut','...')}</td>
+    <td class="sic-lbl">RATING OUT</td><td class="sic-val" style="width:6%">${inp('ratingOut','...')}</td>
+  </tr></table>
+  <table class="sic-tbl"><tr>
+    <td class="sic-lbl">PRESS. TARATURA</td><td class="sic-val">${inp('pressTaratura','...')}</td>
+    <td class="sic-lbl">ORIFIZIO</td><td class="sic-val">${inp('orifizio','...')}</td>
+    <td class="sic-lbl">FLUIDO</td><td class="sic-val">${inp('fluido','...')}</td>
+    <td class="sic-lbl">ANNO</td><td class="sic-val">${inp('anno','...')}</td>
+    <td class="sic-lbl">CERT. TAR. N°</td><td class="sic-val">${inp('certTarN','...')}</td>
+    <td class="sic-lbl">DATA</td><td class="sic-val">${inp('dataCert','...')}</td>
+  </tr></table>
+
+  <div class="sic-sh">PROVE DI TARATURA</div>
+  <table class="sic-tbl">
+    <tr><th style="width:34%"></th><th style="width:33%">PRIMA DELLA REVISIONE</th><th style="width:33%">DOPO LA REVISIONE</th></tr>
+    <tr><td class="sic-lbl">PRESSIONE DI SCATTO</td><td class="sic-val" style="text-align:center">${inp('scattoPrima','bar')}</td><td class="sic-val" style="text-align:center">${inp('scattoDopo','bar')}</td></tr>
+    <tr><td class="sic-lbl">PRESSIONE DI RICHIUSURA</td><td class="sic-val" style="text-align:center">${inp('richiusuraPrima','bar')}</td><td class="sic-val" style="text-align:center">${inp('richiusuraDopo','bar')}</td></tr>
+  </table>
+
+  <div class="sic-sh">STATO DI USURA</div>
+  <table class="sic-tbl">
+    <tr><th style="width:25%"></th><th>BUONO</th><th>DISCRETO</th><th>PESSIMO</th></tr>
+    <tr><td class="sic-lbl">CORPO VALVOLA</td>${radioU('corpo')}</tr>
+    <tr><td class="sic-lbl">SEDE</td>${radioU('sede')}</tr>
+    <tr><td class="sic-lbl">OTTURATORE</td>${radioU('otturatore')}</tr>
+    <tr><td class="sic-lbl">STELO</td>${radioU('stelo')}</tr>
+    <tr><td class="sic-lbl">MOLLA</td>${radioU('molla')}</tr>
+  </table>
+
+  <div class="sic-sh">INTERVENTI ESEGUITI</div>
+  <table class="sic-tbl">
+    <tr><td style="width:4%;text-align:center">${chkI('smontaggio')}</td><td style="width:29%">SMONTAGGIO VALVOLA IN IMPIANTO</td>
+        <td style="width:4%;text-align:center">${chkI('revisioneBase')}</td><td style="width:29%">REVISIONE BASE</td>
+        <td style="width:4%;text-align:center">${chkI('revInOpera')}</td><td style="width:30%">REVISIONE VALVOLA: in opera</td></tr>
+    <tr><td style="text-align:center">${chkI('rimontaggio')}</td><td>RIMONTAGGIO VALVOLA IN IMPIANTO</td>
+        <td style="text-align:center">${chkI('taraturaIspesl')}</td><td>TARATURA ISPESL/ASL</td>
+        <td style="text-align:center">${chkI('sabbiatura')}</td><td>SABBIATURA / SPAZZOLATURA</td></tr>
+    <tr><td style="text-align:center">${chkI('montaggioCieche')}</td><td>MONTAGGIO/SMONTAGGIO CIECHE</td>
+        <td style="text-align:center">${chkI('revisionePilota')}</td><td>REVISIONE PILOTA</td>
+        <td></td><td></td></tr>
+  </table>
+
+  <div class="sic-sh">LAVORAZIONI AGGIUNTIVE</div>
+  <table class="sic-tbl">
+    <tr><th style="width:13%"></th>${lettere.map(l=>`<th class="sic-mhdr">${l}</th>`).join('')}</tr>
+    ${matriceRows}
+    <tr><td class="sic-lbl">ALTRO</td><td colspan="21" class="sic-val"><input value="${s.matriceAltro||''}" onchange="currentScheda.matriceAltro=this.value" placeholder="Specificare..." style="width:100%;border:none;background:transparent;font-size:8px;"></td></tr>
+  </table>
+
+  <div class="sic-sh">LEGENDA COMPONENTI</div>
+  <table class="sic-tbl">${legendaHTML}</table>
+
+  <div class="sic-sh">NOTE</div>
+  <div class="sic-note"><textarea style="width:100%;min-height:40px;border:none;background:transparent;font-size:8px;resize:vertical;" onchange="currentScheda.note=this.value">${s.note||''}</textarea></div>
+
+  <div class="sic-2col">
+    <div>
+      <div class="sic-sh">MATERIALI SOSTITUITI</div>
+      <table class="sic-tbl">
+        ${['A','B','C','D','E'].map(l=>`<tr><td class="sic-lbl" style="width:8%">${l}</td><td class="sic-val"><input value="${s.materiali[l]||''}" onchange="currentScheda.materiali['${l}']=this.value" placeholder="..." style="width:100%;border:none;background:transparent;font-size:8px;font-weight:700;"></td></tr>`).join('')}
+      </table>
+    </div>
+    <div>
+      <div class="sic-sh">INDICAZIONI FERMATA SUCCESSIVA</div>
+      <table class="sic-tbl">
+        ${['1','2','3','4','5'].map(n=>`<tr><td class="sic-lbl" style="width:8%">${n}</td><td class="sic-val"><input value="${s.indicazioni[n]||''}" onchange="currentScheda.indicazioni['${n}']=this.value" placeholder="..." style="width:100%;border:none;background:transparent;font-size:8px;font-weight:700;"></td></tr>`).join('')}
+      </table>
+    </div>
+  </div>
+
+  <div class="sic-foot-row">
+    <div class="sic-foot-cell"><div class="sic-fl">INIZIO REVISIONE</div><div class="sic-fv">${inp('inizioRevisione','gg/mm/aaaa')}</div></div>
+    <div class="sic-foot-cell"><div class="sic-fl">FINE REVISIONE</div><div class="sic-fv">${inp('fineRevisione','gg/mm/aaaa')}</div></div>
+    <div class="sic-foot-cell"><div class="sic-fl">OPERATORE</div><div class="sic-fv">${inp('operatore','Nome')}</div></div>
+    <div class="sic-foot-cell"><div class="sic-fl">CONTROLLO</div><div class="sic-fv">${inp('controllo','Nome')}</div></div>
+  </div>
+  <div style="margin-top:3px;font-size:6.5px;color:#aaa;text-align:center;">RTI VCF modello 02 rev. 0 del 26.10.2010</div>
+</div>
+
+<!-- PAGINA 2 — REPORT FOTOGRAFICO -->
+<div class="sic-page" style="margin-top:12px;">
+  <div class="sic-hdr-row">
+    <div class="sic-hdr-logo"><img src="${_imgVedB64}" alt="VED"></div>
+    <div class="sic-hdr-title">REPORT FOTOGRAFICO</div>
+    <div class="sic-hdr-schema"><img src="${_imgVedB64}" alt="VED"></div>
+  </div>
+  <div class="section-header" style="margin-top:8px;">
+    <span>📷 Foto</span>
+    <button class="btn-sm" onclick="addPhotoSic()">+ Foto</button>
+  </div>
+  <input type="file" id="sic-photo-inp" accept="image/*" capture="environment" multiple style="display:none" onchange="handleSicPhotos(this.files)">
+  ${photosGrid}
+</div>
+`;
+  document.getElementById('scheda-content').innerHTML = html;
+}
+
+function addPhotoSic(){document.getElementById('sic-photo-inp').click();}
+async function handleSicPhotos(files){
+  for(let i=0;i<files.length;i++){
+    const dataUrl=await compressImage(files[i],1600,0.92);
+    if(!currentScheda.photos) currentScheda.photos=[];
+    currentScheda.photos.push({dataUrl,label:'Figura '+(currentScheda.photos.length+1)});
+  }
+  renderSchedaSicurezza();
+}
+
 
 // ── STATUS COMPLETA ─────────────────────────────────────────────────
 function toggleCompleted(){
