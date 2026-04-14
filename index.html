@@ -521,6 +521,7 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
   <!-- SCHEDE LOCALI -->
   <div class="cloud-section-title">💾 Schede Locali</div>
   <div class="saved-list" id="saved-list"></div>
+  <div style="margin-top:30px;text-align:center;font-size:10px;color:#aaa;letter-spacing:0.5px;">Creator: Ing. G. Politi</div>
 </div>
 
 <!-- FORM -->
@@ -3581,7 +3582,7 @@ setInterval(() => {
 // Il SW viene registrato solo su Chrome/Android/Desktop.
 if('serviceWorker' in navigator){
   const swCode=`
-const CACHE='tms-v10';
+const CACHE='tms-v11';
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-96.png'])).catch(()=>{}));
   self.skipWaiting();
