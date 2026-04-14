@@ -271,64 +271,72 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
 
 /* ===== RESPONSIVE / ADAPTIVE ===== */
 @media (max-width: 600px) {
-  #home-screen { padding:16px 12px 30px; }
-  .home-logo { padding:14px 18px; margin-bottom:16px; }
-  .home-logo img { max-width:110px; }
-  .home-title { font-size:18px; }
-  .home-subtitle { font-size:13px; }
-  .btn-primary { padding:14px 20px; font-size:17px; max-width:100%; }
-  .btn-secondary { padding:13px 18px; font-size:15px; max-width:100%; }
+  /* ── FLUID RESPONSIVE: clamp() scala automaticamente con la larghezza schermo ── */
+  #home-screen { padding: clamp(10px,3vw,20px) clamp(8px,2.5vw,16px) clamp(16px,4vw,30px); }
+  .home-logo { padding: clamp(10px,3vw,18px); margin-bottom: clamp(8px,2.5vw,16px); }
+  .home-logo img { max-width: clamp(70px,22vw,120px); }
+  .home-title { font-size: clamp(14px,4.2vw,20px); }
+  .home-subtitle { font-size: clamp(9px,2.8vw,12px); }
+  .btn-primary { padding: clamp(9px,2.8vw,14px) clamp(12px,4vw,24px); font-size: clamp(13px,3.8vw,16px); max-width:100%; }
+  .btn-secondary { padding: clamp(8px,2.5vw,12px) clamp(10px,3vw,18px); font-size: clamp(11px,3.2vw,14px); max-width:100%; }
   .saved-list { max-width:100%; }
-  .saved-item { padding:12px 12px; flex-wrap:wrap; }
-  .saved-item-title { font-size:15px; line-height:1.3; }
-  .saved-item-sub { font-size:13px; margin-top:3px; }
-  .saved-item-actions { margin-top:8px; width:100%; justify-content:flex-end; gap:6px; }
-  .saved-item-actions .btn-sm { padding:8px 16px; font-size:13px; }
-  .top-bar { padding:8px 10px; gap:6px; }
-  .top-bar-title { font-size:14px; min-width:50px; }
-  .top-bar-actions { gap:4px; flex-wrap:wrap; }
-  .btn-sm { padding:7px 12px; font-size:13px; }
+  .saved-item { padding: clamp(7px,2vw,12px) clamp(8px,2.5vw,14px); flex-wrap:nowrap; gap: clamp(4px,1.5vw,10px); }
+  .saved-item-info { min-width:0; overflow:hidden; }
+  .saved-item-title { font-size: clamp(11px,3.2vw,14px); line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .saved-item-sub { font-size: clamp(9px,2.6vw,12px); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .saved-item-cloud { font-size: clamp(8px,2.2vw,11px) !important; }
+  .saved-item-actions { margin-top:0; width:auto; flex-shrink:0; gap: clamp(2px,1vw,6px); }
+  .saved-item-actions .btn-sm { padding: clamp(4px,1.5vw,8px) clamp(6px,2vw,12px); font-size: clamp(9px,2.6vw,12px); }
+  .top-bar { padding: clamp(6px,2vw,10px) clamp(8px,2.5vw,14px); gap: clamp(4px,1.5vw,8px); }
+  .top-bar-title { font-size: clamp(11px,3vw,14px); min-width:40px; }
+  .top-bar-actions { gap: clamp(2px,1vw,5px); flex-wrap:wrap; }
+  .btn-sm { padding: clamp(4px,1.5vw,8px) clamp(6px,2vw,12px); font-size: clamp(10px,2.8vw,13px); }
   #form-screen { padding-bottom:60px; }
-  .doc-header-inner { grid-template-columns:60px 1fr 110px; }
-  .doc-header-logo img { max-width:54px; max-height:40px; }
-  .doc-header-center h2 { font-size:12px; letter-spacing:0; }
-  .header-right-top { font-size:11px; padding:4px 6px; }
-  .header-right-ord { font-size:12px; padding:4px 6px; }
+  .doc-header-inner { grid-template-columns: clamp(40px,14vw,70px) 1fr clamp(80px,28vw,130px); }
+  .doc-header-logo img { max-width: clamp(36px,12vw,60px); max-height: clamp(28px,9vw,46px); }
+  .doc-header-center h2 { font-size: clamp(10px,3vw,14px); letter-spacing:0; }
+  .header-right-top { font-size: clamp(9px,2.6vw,12px); padding: clamp(2px,1vw,5px) clamp(4px,1.5vw,8px); }
+  .header-right-ord { font-size: clamp(10px,2.8vw,13px); padding: clamp(2px,1vw,5px) clamp(4px,1.5vw,8px); }
   .doc-header-bottom { grid-template-columns:1fr; }
   .header-row { border-right:none !important; }
-  .header-label { font-size:13px; min-width:56px; padding:5px 8px; }
-  .header-value { font-size:13px; padding:5px 8px; }
-  .header-value input { font-size:14px; }
-  .section-header { font-size:14px; padding:6px 10px; }
-  .dati-label { width:90px; font-size:13px; padding:5px 8px; }
-  .dati-input { font-size:14px; padding:5px 8px; }
+  .header-label { font-size: clamp(10px,2.8vw,13px); min-width: clamp(44px,14vw,68px); padding: clamp(3px,1vw,6px) clamp(6px,2vw,10px); }
+  .header-value { font-size: clamp(10px,2.8vw,13px); padding: clamp(3px,1vw,6px) clamp(6px,2vw,10px); }
+  .header-value input { font-size: clamp(11px,3vw,14px); }
+  .section-header { font-size: clamp(11px,3.2vw,14px); padding: clamp(4px,1.2vw,7px) clamp(8px,2.5vw,12px); }
+  .dati-label { width: clamp(70px,22vw,100px); font-size: clamp(10px,2.8vw,13px); padding: clamp(3px,1vw,6px) clamp(6px,2vw,10px); }
+  .dati-input { font-size: clamp(11px,3vw,14px); padding: clamp(3px,1vw,6px) clamp(6px,2vw,10px); }
   .ops-table { grid-template-columns:1fr; }
-  .ops-item { border-right:none; font-size:14px; padding:6px 8px; }
+  .ops-item { border-right:none; font-size: clamp(11px,3vw,14px); padding: clamp(4px,1.2vw,7px) clamp(6px,2vw,10px); }
   .ops-add-row { flex-direction:column; gap:6px; }
-  .ops-add-row input { width:100%; font-size:14px; padding:8px; }
-  .tenute-table th { font-size:12px; }
-  .tenute-table td input { font-size:13px; padding:4px 6px; }
-  .note-area textarea { font-size:14px; min-height:80px; }
+  .ops-add-row input { width:100%; font-size: clamp(11px,3vw,14px); padding: clamp(5px,1.5vw,9px); }
+  .tenute-table th { font-size: clamp(9px,2.6vw,12px); }
+  .tenute-table td input { font-size: clamp(10px,2.8vw,13px); padding: clamp(2px,0.8vw,5px) clamp(4px,1.2vw,7px); }
+  .note-area textarea { font-size: clamp(11px,3vw,14px); min-height: clamp(50px,16vw,80px); }
   .photo-controls { flex-direction:column; align-items:stretch; gap:8px; }
   .photo-resize { width:100%; }
   .photo-resize input[type=range] { flex:1; width:100%; }
   .photo-table td { display:block; width:100% !important; }
-  .modal { padding:16px; max-width:100vw; width:100%; border-radius:10px; }
-  .modal h3 { font-size:17px; }
-  .modal label { font-size:13px; }
-  .modal input, .modal select, .modal textarea { font-size:15px; padding:10px; }
-  .modal-actions { flex-direction:column; gap:8px; }
-  .modal-actions .btn-sm { width:100%; text-align:center; padding:10px; font-size:14px; }
-  .share-menu { width:95%; padding:16px; }
-  .share-btn { padding:11px 12px; font-size:14px; }
+  .modal { padding: clamp(10px,3vw,18px); max-width:100vw; width:100%; border-radius:10px; }
+  .modal h3 { font-size: clamp(14px,4vw,18px); }
+  .modal label { font-size: clamp(10px,2.8vw,13px); }
+  .modal input, .modal select, .modal textarea { font-size: clamp(12px,3.5vw,15px); padding: clamp(7px,2vw,11px); }
+  .modal-actions { flex-direction:column; gap:6px; }
+  .modal-actions .btn-sm { width:100%; text-align:center; padding: clamp(7px,2vw,11px); font-size: clamp(11px,3vw,14px); }
+  .share-menu { width:95%; padding: clamp(10px,3vw,16px); }
+  .share-btn { padding: clamp(8px,2.5vw,12px); font-size: clamp(11px,3vw,14px); }
   .page-footer-row { flex-direction:column; gap:8px; padding:6px 10px 0; }
   .page-footer-field { flex-wrap:wrap; }
-  .page-footer-field input { min-width:60px; font-size:13px; }
-  .cloud-bar-mini { flex-wrap:wrap; gap:6px; padding:8px 12px; font-size:13px; }
-  .cloud-section-title { font-size:15px; padding:8px 12px; }
-  .client-card { padding:10px 12px; }
-  .client-card-name { font-size:15px; }
-  .client-card-type { font-size:12px; }
+  .page-footer-field input { min-width:50px; font-size: clamp(10px,2.8vw,13px); }
+  .cloud-bar-mini { flex-wrap:wrap; gap: clamp(3px,1vw,6px); padding: clamp(5px,1.5vw,9px) clamp(8px,2.5vw,12px); font-size: clamp(10px,2.8vw,13px); }
+  .cloud-section-title { font-size: clamp(11px,3.2vw,15px); padding: clamp(5px,1.5vw,9px) clamp(8px,2.5vw,12px); }
+  .client-card { padding: clamp(6px,2vw,10px) clamp(8px,2.5vw,14px); }
+  .client-card-name { font-size: clamp(11px,3.2vw,15px); }
+  .client-card-type { font-size: clamp(9px,2.6vw,12px); }
+  /* Report card mobile */
+  .report-card-item { padding: clamp(8px,2.5vw,14px) !important; margin-bottom: clamp(6px,1.5vw,10px) !important; }
+  .report-card-label { font-size: clamp(9px,2.6vw,12px) !important; }
+  .report-card-value { font-size: clamp(10px,2.8vw,13px) !important; word-break:break-word; }
+  .report-del-btn { padding: clamp(3px,1vw,6px) clamp(6px,2vw,12px) !important; font-size: clamp(9px,2.6vw,12px) !important; }
 }
 @media (min-width:601px) and (max-width:900px) {
   #form-screen { max-width:100%; padding:0 8px 60px; }
@@ -3582,7 +3590,7 @@ setInterval(() => {
 // Il SW viene registrato solo su Chrome/Android/Desktop.
 if('serviceWorker' in navigator){
   const swCode=`
-const CACHE='tms-v11';
+const CACHE='tms-v13';
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-96.png'])).catch(()=>{}));
   self.skipWaiting();
