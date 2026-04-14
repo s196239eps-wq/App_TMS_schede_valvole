@@ -924,8 +924,14 @@ function saveClientsToStorage(){
 
 async function loadTemplatesFromCloud(){
   try{
-    const remote = await fbGet('/templates');
-    if(remote && Array.isArray(remote) && remote.length){
+    let remote = await fbGet('/templates');
+    if(!remote) return;
+    // Firebase può restituire un oggetto — normalizza in array
+    if(!Array.isArray(remote)){
+      if(typeof remote === 'object') remote = Object.values(remote);
+      else return;
+    }
+    if(remote.length){
       remote.forEach(rt=>{
         if(!rt || !rt.id) return;
         const local = clients.find(c=>c.id===rt.id);
@@ -1402,34 +1408,50 @@ function loadReport(){
 
 function saveReport(){
   try{ localStorage.setItem('tms_report_v1', JSON.stringify(reportEntries)); }catch(e){ console.error('Errore salvataggio report',e); }
-  // Sincronizza sul cloud Firebase
-  fbPut('/report', reportEntries).catch(e => console.warn('Report cloud sync error:', e));
+  // Sincronizza sul cloud Firebase — salva come oggetto con ID come chiavi
+  // (evita problemi di Firebase con array sparsi)
+  const reportObj = {};
+  reportEntries.forEach(r => { if(r && r.id) reportObj[r.id] = r; });
+  fbPut('/report', reportObj).catch(e => console.warn('Report cloud sync error:', e));
 }
 
 async function syncReportFromCloud(){
   try{
     const remote = await fbGet('/report');
-    if(!remote || !Array.isArray(remote)) return;
-    // Merge: per ogni entry remota, se non esiste in locale la aggiunge,
-    // se esiste aggiorna solo se la remota è più recente
-    remote.forEach(rEntry => {
-      if(!rEntry || !rEntry.id) return;
-      const localIdx = reportEntries.findIndex(r => r.id === rEntry.id);
-      if(localIdx < 0){
-        // Entry presente solo nel cloud — aggiungi
-        reportEntries.push(rEntry);
-      } else {
-        // Esiste in entrambi — prendi la versione più recente
-        const local = reportEntries[localIdx];
-        const remoteTime = new Date(rEntry.updatedAt || rEntry.insertedAt || 0).getTime();
-        const localTime = new Date(local.updatedAt || local.insertedAt || 0).getTime();
-        if(remoteTime > localTime){
-          reportEntries[localIdx] = rEntry;
-        }
+    // Se il cloud è vuoto ma ho dati locali, push locale → cloud (prima sincronizzazione)
+    if(!remote || (typeof remote === 'object' && Object.keys(remote).length === 0)){
+      if(reportEntries.length > 0){
+        const reportObj = {};
+        reportEntries.forEach(r => { if(r && r.id) reportObj[r.id] = r; });
+        await fbPut('/report', reportObj).catch(e => console.warn(e));
+      }
+      return;
+    }
+    // Firebase restituisce un oggetto {id: entry, ...} — converti in array
+    let remoteEntries = [];
+    if(Array.isArray(remote)){
+      remoteEntries = remote.filter(r => r && r.id);
+    } else if(typeof remote === 'object'){
+      remoteEntries = Object.values(remote).filter(r => r && r.id);
+    }
+    // Il cloud è la fonte di verità: prendilo come base
+    // Aggiungi solo le entry locali che NON esistono nel cloud
+    const remoteIds = new Set(remoteEntries.map(r => r.id));
+    let addedLocal = false;
+    reportEntries.forEach(local => {
+      if(local && local.id && !remoteIds.has(local.id)){
+        remoteEntries.push(local);
+        addedLocal = true;
       }
     });
-    // Salva il merge in locale (senza ri-pushare al cloud per evitare loop)
+    reportEntries = remoteEntries;
     try{ localStorage.setItem('tms_report_v1', JSON.stringify(reportEntries)); }catch(e){}
+    // Se abbiamo aggiunto entry locali, ri-pusha al cloud
+    if(addedLocal){
+      const reportObj = {};
+      reportEntries.forEach(r => { if(r && r.id) reportObj[r.id] = r; });
+      await fbPut('/report', reportObj).catch(e => console.warn(e));
+    }
   }catch(e){ console.warn('Report cloud load error:', e); }
 }
 
@@ -1448,10 +1470,13 @@ function upsertReportEntry(s){
     existing.classe = s.classe || existing.classe || '—';
     existing.tipologia = s.tipologia || existing.tipologia || '—';
     existing.updatedAt = s.updatedAt || existing.updatedAt || '—';
-    // Stato completamento: aggiorna solo se la scheda è stata completata
+    // Stato completamento: sincronizza sempre con la scheda
     if(s.completed) {
       existing.completed = true;
       existing.completedAt = s.completedAt || existing.completedAt || new Date().toISOString();
+    } else if(s.completed === false) {
+      existing.completed = false;
+      existing.completedAt = null;
     }
   } else {
     // Nuova entry
@@ -2442,6 +2467,8 @@ function toggleCompleted(){
     showToast('✅ Scheda segnata come COMPLETA!','#27ae60');
   }
   updateCompletedUI();
+  // Aggiorna il report con lo stato completamento
+  upsertReportEntry(currentScheda);
   // Salva automaticamente sul cloud (non in locale)
   saveToCloud();
 }
@@ -2521,7 +2548,7 @@ async function duplicateScheda(){
     // Apri la copia nell'editor
     currentScheda = copy;
     currentScheda._openedAt = now;
-    updateCompletedUI();
+    showFormScreen();
     showToast('✅ Scheda duplicata e pubblicata sul cloud!','#27ae60');
     await syncFromCloud();
     setTimeout(()=>{ _mySaveIds.delete(copy.id); }, 5000);
@@ -3781,7 +3808,7 @@ setInterval(() => {
 // Il SW viene registrato solo su Chrome/Android/Desktop.
 if('serviceWorker' in navigator){
   const swCode=`
-const CACHE='tms-v15';
+const CACHE='tms-v16';
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-96.png'])).catch(()=>{}));
   self.skipWaiting();
