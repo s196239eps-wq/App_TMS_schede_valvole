@@ -271,55 +271,64 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
 
 /* ===== RESPONSIVE / ADAPTIVE ===== */
 @media (max-width: 600px) {
-  .home-logo { padding:12px 16px; margin-bottom:14px; }
-  .home-logo img { max-width:100px; }
-  .home-title { font-size:16px; }
-  .btn-primary { padding:12px 20px; font-size:15px; }
-  .btn-secondary { padding:10px 18px; font-size:13px; }
+  #home-screen { padding:16px 12px 30px; }
+  .home-logo { padding:14px 18px; margin-bottom:16px; }
+  .home-logo img { max-width:110px; }
+  .home-title { font-size:18px; }
+  .home-subtitle { font-size:13px; }
+  .btn-primary { padding:14px 20px; font-size:17px; max-width:100%; }
+  .btn-secondary { padding:13px 18px; font-size:15px; max-width:100%; }
   .saved-list { max-width:100%; }
-  .saved-item { padding:9px 10px; flex-wrap:wrap; }
-  .saved-item-actions { margin-top:6px; width:100%; justify-content:flex-end; }
-  .top-bar { padding:7px 8px; gap:6px; }
-  .top-bar-title { font-size:12px; min-width:50px; }
-  .top-bar-actions { gap:3px; }
-  .btn-sm { padding:5px 8px; font-size:11px; }
+  .saved-item { padding:12px 12px; flex-wrap:wrap; }
+  .saved-item-title { font-size:15px; line-height:1.3; }
+  .saved-item-sub { font-size:13px; margin-top:3px; }
+  .saved-item-actions { margin-top:8px; width:100%; justify-content:flex-end; gap:6px; }
+  .saved-item-actions .btn-sm { padding:8px 16px; font-size:13px; }
+  .top-bar { padding:8px 10px; gap:6px; }
+  .top-bar-title { font-size:14px; min-width:50px; }
+  .top-bar-actions { gap:4px; flex-wrap:wrap; }
+  .btn-sm { padding:7px 12px; font-size:13px; }
   #form-screen { padding-bottom:60px; }
   .doc-header-inner { grid-template-columns:60px 1fr 110px; }
   .doc-header-logo img { max-width:54px; max-height:40px; }
-  .doc-header-center h2 { font-size:11px; letter-spacing:0; }
-  .header-right-top { font-size:10px; padding:3px 5px; }
-  .header-right-ord { font-size:11px; padding:3px 5px; }
+  .doc-header-center h2 { font-size:12px; letter-spacing:0; }
+  .header-right-top { font-size:11px; padding:4px 6px; }
+  .header-right-ord { font-size:12px; padding:4px 6px; }
   .doc-header-bottom { grid-template-columns:1fr; }
   .header-row { border-right:none !important; }
-  .header-label { font-size:11px; min-width:56px; padding:4px 6px; }
-  .header-value { font-size:11px; padding:4px 6px; }
-  .header-value input { font-size:11px; }
-  .section-header { font-size:12px; padding:4px 8px; }
-  .dati-label { width:90px; font-size:11px; padding:4px 6px; }
-  .dati-input { font-size:11px; padding:4px 6px; }
+  .header-label { font-size:13px; min-width:56px; padding:5px 8px; }
+  .header-value { font-size:13px; padding:5px 8px; }
+  .header-value input { font-size:14px; }
+  .section-header { font-size:14px; padding:6px 10px; }
+  .dati-label { width:90px; font-size:13px; padding:5px 8px; }
+  .dati-input { font-size:14px; padding:5px 8px; }
   .ops-table { grid-template-columns:1fr; }
-  .ops-item { border-right:none; font-size:11px; }
-  .ops-add-row { flex-direction:column; gap:4px; }
-  .ops-add-row input { width:100%; }
-  .tenute-table th, .tenute-table td input { font-size:11px; }
-  .note-area textarea { font-size:12px; min-height:70px; }
-  .photo-controls { flex-direction:column; align-items:flex-start; gap:6px; }
+  .ops-item { border-right:none; font-size:14px; padding:6px 8px; }
+  .ops-add-row { flex-direction:column; gap:6px; }
+  .ops-add-row input { width:100%; font-size:14px; padding:8px; }
+  .tenute-table th { font-size:12px; }
+  .tenute-table td input { font-size:13px; padding:4px 6px; }
+  .note-area textarea { font-size:14px; min-height:80px; }
+  .photo-controls { flex-direction:column; align-items:stretch; gap:8px; }
   .photo-resize { width:100%; }
   .photo-resize input[type=range] { flex:1; width:100%; }
   .photo-table td { display:block; width:100% !important; }
-  .modal { padding:14px; max-width:95vw; }
-  .modal h3 { font-size:15px; }
-  .modal label { font-size:11px; }
-  .modal input, .modal select, .modal textarea { font-size:12px; padding:8px; }
-  .modal-actions { flex-direction:column; gap:6px; }
-  .modal-actions .btn-sm { width:100%; text-align:center; }
-  .share-menu { width:95%; padding:14px; }
-  .share-btn { padding:9px 10px; font-size:12px; }
-  .page-footer-row { flex-direction:column; gap:6px; padding:4px 10px 0; }
+  .modal { padding:16px; max-width:100vw; width:100%; border-radius:10px; }
+  .modal h3 { font-size:17px; }
+  .modal label { font-size:13px; }
+  .modal input, .modal select, .modal textarea { font-size:15px; padding:10px; }
+  .modal-actions { flex-direction:column; gap:8px; }
+  .modal-actions .btn-sm { width:100%; text-align:center; padding:10px; font-size:14px; }
+  .share-menu { width:95%; padding:16px; }
+  .share-btn { padding:11px 12px; font-size:14px; }
+  .page-footer-row { flex-direction:column; gap:8px; padding:6px 10px 0; }
   .page-footer-field { flex-wrap:wrap; }
-  .page-footer-field input { min-width:60px; font-size:11px; }
-  .cloud-bar-mini { flex-wrap:wrap; gap:4px; padding:6px 10px; }
-  .cloud-section-title { font-size:13px; padding:6px 10px; }
+  .page-footer-field input { min-width:60px; font-size:13px; }
+  .cloud-bar-mini { flex-wrap:wrap; gap:6px; padding:8px 12px; font-size:13px; }
+  .cloud-section-title { font-size:15px; padding:8px 12px; }
+  .client-card { padding:10px 12px; }
+  .client-card-name { font-size:15px; }
+  .client-card-type { font-size:12px; }
 }
 @media (min-width:601px) and (max-width:900px) {
   #form-screen { max-width:100%; padding:0 8px 60px; }
@@ -345,6 +354,32 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
 .report-table tr:hover { background:#d4e3f5; }
 .report-del-btn { background:#e74c3c;color:white;border:none;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer; }
 .report-del-btn:hover { background:#c0392b; }
+/* Report card mobile - nascosta di default */
+.report-card { display:none; }
+
+/* ── REPORT RESPONSIVE ─────────────────────── */
+@media (max-width: 700px) {
+  #report-modal .modal-content {
+    max-width:100vw !important; width:100vw !important;
+    max-height:100vh !important; height:100vh !important;
+    border-radius:0 !important; margin:0 !important;
+    padding:12px !important; box-sizing:border-box;
+  }
+  #report-modal h3 { font-size:16px; margin-bottom:8px; }
+  /* Nascondo la tabella desktop e mostro le card */
+  .report-table { display:none; }
+  .report-card { display:block; }
+  .report-card-item {
+    background:#fff; border:1px solid #dde1e6; border-radius:6px;
+    padding:10px 12px; margin-bottom:8px;
+  }
+  .report-card-item:nth-child(even) { background:#eef2f7; }
+  .report-card-row { display:flex; justify-content:space-between; margin-bottom:3px; font-size:13px; }
+  .report-card-label { color:#666; font-size:11px; font-weight:600; min-width:80px; }
+  .report-card-value { color:#222; font-weight:700; text-align:right; flex:1; }
+  .report-card-actions { text-align:right; margin-top:6px; }
+  .report-client-header { font-size:14px; padding:8px 12px; }
+}
 
 @media print {
   /* Nasconde tutto tranne il report quando si stampa il report */
@@ -1195,6 +1230,7 @@ function renderReportContent(){
     const entries = grouped[cName];
     html += '<div class="report-client-group">';
     html += '<div class="report-client-header">👤 ' + cName + ' — ' + entries.length + ' schede</div>';
+    // ── TABELLA DESKTOP ──
     html += '<table class="report-table"><thead><tr>';
     html += '<th>TAG</th><th>Commessa</th><th>Valvola</th><th>DN</th><th>Classe</th><th>Tipologia</th><th>Data</th><th></th>';
     html += '</tr></thead><tbody>';
@@ -1211,7 +1247,22 @@ function renderReportContent(){
       html += '<td><button class="report-del-btn" onclick="removeReportEntry(\'' + r.id + '\')">✕</button></td>';
       html += '</tr>';
     });
-    html += '</tbody></table></div>';
+    html += '</tbody></table>';
+    // ── CARD MOBILE ──
+    html += '<div class="report-card">';
+    entries.forEach(r => {
+      const data = r.updatedAt ? new Date(r.updatedAt).toLocaleDateString('it-IT') : '—';
+      html += '<div class="report-card-item">';
+      html += '<div class="report-card-row"><span class="report-card-label">TAG</span><span class="report-card-value">' + (r.tag||'—') + '</span></div>';
+      html += '<div class="report-card-row"><span class="report-card-label">Commessa</span><span class="report-card-value">' + (r.commessa||'—') + '</span></div>';
+      html += '<div class="report-card-row"><span class="report-card-label">Valvola</span><span class="report-card-value">' + (r.valvola||'—') + '</span></div>';
+      html += '<div class="report-card-row"><span class="report-card-label">DN / Classe</span><span class="report-card-value">' + (r.dn||'—') + ' / ' + (r.classe||'—') + '</span></div>';
+      html += '<div class="report-card-row"><span class="report-card-label">Tipologia</span><span class="report-card-value">' + (r.tipologia||'—') + '</span></div>';
+      html += '<div class="report-card-row"><span class="report-card-label">Data</span><span class="report-card-value">' + data + '</span></div>';
+      html += '<div class="report-card-actions"><button class="report-del-btn" onclick="removeReportEntry(\'' + r.id + '\')">✕ Rimuovi</button></div>';
+      html += '</div>';
+    });
+    html += '</div>';
   });
   container.innerHTML = html;
 }
@@ -1222,11 +1273,6 @@ function printReport(){
     window.print();
     setTimeout(()=>{ document.body.classList.remove('printing-report'); }, 500);
   }, 200);
-}
-
-// =================== SCHEDA VALVOLA DI SICUREZZA ===================
-function openSchedaSicurezza(){
-  window.open('scheda_sicurezza.html','_blank');
 }
 
 // =================== TEMPLATE EDITOR ===================
@@ -1891,7 +1937,7 @@ function renderSchedaSicurezza(){
     <span>📷 Foto</span>
     <button class="btn-sm" onclick="addPhotoSic()">+ Foto</button>
   </div>
-  <input type="file" id="sic-photo-inp" accept="image/*" capture="environment" multiple style="display:none" onchange="handleSicPhotos(this.files)">
+  <input type="file" id="sic-photo-inp" accept="image/*" capture="environment" multiple style="display:none" onchange="handleSicPhotos(this)">
   ${photosGrid}
 </div>
 `;
@@ -1899,13 +1945,26 @@ function renderSchedaSicurezza(){
 }
 
 function addPhotoSic(){document.getElementById('sic-photo-inp').click();}
-async function handleSicPhotos(files){
-  for(let i=0;i<files.length;i++){
-    const dataUrl=await compressImage(files[i],1600,0.92);
-    if(!currentScheda.photos) currentScheda.photos=[];
-    currentScheda.photos.push({dataUrl,label:'Figura '+(currentScheda.photos.length+1)});
-  }
-  renderSchedaSicurezza();
+function handleSicPhotos(input){
+  const files=Array.from(input.files);
+  if(!files.length) return;
+  let loaded=0;
+  showToast('⏳ Ottimizzazione foto...','#2980b9');
+  files.forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=async e=>{
+      const compressed = await compressPhoto(e.target.result);
+      if(!currentScheda.photos) currentScheda.photos=[];
+      currentScheda.photos.push({dataUrl:compressed,label:'Figura '+(currentScheda.photos.length+1)});
+      loaded++;
+      if(loaded===files.length){
+        renderSchedaSicurezza();
+        showToast('✅ '+files.length+' foto aggiunt'+(files.length===1?'a':'e'),'#27ae60');
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value='';
 }
 
 
@@ -2087,6 +2146,9 @@ function _unlockAudio() {
       osc.start(ctx.currentTime);
       osc.stop(ctx.currentTime + 0.01);
       _audioUnlocked = true;
+      // Rimuovi listener per evitare overhead
+      document.removeEventListener('click', _unlockAudio);
+      document.removeEventListener('touchstart', _unlockAudio);
       // Rimuovi il banner
       const banner = document.getElementById('audio-unlock-banner');
       if(banner) {
@@ -3245,9 +3307,9 @@ function startRealtimeSync() {
   }
 }
 
-// Polling di backup ogni 60s (nel caso SSE perda eventi)
+// Polling di backup ogni 90s (solo se SSE non è attivo)
 setInterval(() => {
-  if(document.getElementById('home-screen').style.display !== 'none') {
+  if(!_sseSource && document.getElementById('home-screen').style.display !== 'none') {
     syncFromCloud();
   }
 }, 60000);
