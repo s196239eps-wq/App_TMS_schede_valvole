@@ -935,11 +935,13 @@ function renderHome() {
 function showNewScheda() {
   // ── POPOLA CLIENTI: solo nomi azienda reali dalle schede elaborate ──
   const sel = document.getElementById('client-select');
-  // Escludi solo i nomi che corrispondono ai TIPI BASE di scheda (non sono clienti)
+  // Escludi solo i label dei TIPI BASE di scheda (non sono clienti)
   const baseTypeNames = new Set([
-    'scheda standard','enel termico','enel a sfera','valvola di sicurezza'
+    'scheda standard','enel termico','enel a sfera','valvola di sicurezza',
+    'schede revisione attuatori','saracinesca e tappo','valvola a sfera',
+    'vdr','scheda attuatore','revisione attuatori','attuatore'
   ]);
-  // Raccogli nomi clienti UNICI dalle schede realmente elaborate (locali + cloud)
+  // Raccogli nomi clienti UNICI dalle schede elaborate (locali + cloud)
   const allSchede = [...savedSchedeList, ...(typeof cloudSchedeList!=='undefined'?cloudSchedeList:[])];
   const realClients = new Set();
   allSchede.forEach(s => {
@@ -2083,6 +2085,18 @@ async function duplicateScheda(){
   copy.completedAt = null;
   copy.completedBy = null;
   delete copy._openedAt;
+
+  // ── Incrementa numero progressivo nel TAG ──
+  // Formato tag: 055EA/26 → 055=numero, EA=cliente, 26=anno
+  if(copy.tag && copy.tag.trim()) {
+    const tagMatch = copy.tag.trim().match(/^(\d+)(.*)$/);
+    if(tagMatch) {
+      const numPart = tagMatch[1]; // es. "055"
+      const restPart = tagMatch[2]; // es. "EA/26"
+      const incremented = String(parseInt(numPart, 10) + 1).padStart(numPart.length, '0');
+      copy.tag = incremented + restPart;
+    }
+  }
 
   let userName = localStorage.getItem('tms_username') || '';
   if(!userName){
