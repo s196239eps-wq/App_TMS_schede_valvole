@@ -935,16 +935,17 @@ function renderHome() {
 function showNewScheda() {
   // ── POPOLA CLIENTI: solo nomi azienda reali dalle schede elaborate ──
   const sel = document.getElementById('client-select');
-  // Raccogli i nomi dei template (dalla lista clients[]) per escluderli dal dropdown clienti
-  const tplNames = new Set();
-  clients.forEach(c => { if(c.name) tplNames.add(c.name.toLowerCase().trim()); });
+  // Escludi solo i nomi che corrispondono ai TIPI BASE di scheda (non sono clienti)
+  const baseTypeNames = new Set([
+    'scheda standard','enel termico','enel a sfera','valvola di sicurezza'
+  ]);
   // Raccogli nomi clienti UNICI dalle schede realmente elaborate (locali + cloud)
   const allSchede = [...savedSchedeList, ...(typeof cloudSchedeList!=='undefined'?cloudSchedeList:[])];
   const realClients = new Set();
   allSchede.forEach(s => {
     if(s.clientName && s.clientName.trim()) {
       const name = s.clientName.trim();
-      if(!tplNames.has(name.toLowerCase().trim())) {
+      if(!baseTypeNames.has(name.toLowerCase().trim())) {
         realClients.add(name);
       }
     }
