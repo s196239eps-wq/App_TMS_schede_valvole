@@ -597,6 +597,7 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
     <h3>📊 Report Lavori — <span id="report-date"></span></h3>
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
       <button class="btn-sm success" onclick="printReport()">🖨️ Stampa Report</button>
+      <button class="btn-sm" style="background:#8e44ad;" onclick="addManualReportEntry()">➕ Aggiungi Riga</button>
       <button class="btn-sm" style="background:#e74c3c;" onclick="clearAllReport()">🗑 Svuota Report</button>
       <button class="btn-sm outline" onclick="closeModal('report-modal')">Chiudi</button>
     </div>
@@ -1239,23 +1240,39 @@ function saveReport(){
 // Aggiunge/aggiorna una entry nel report quando una scheda viene salvata
 function upsertReportEntry(s){
   if(!s || !s.id) return;
-  const entry = {
-    id: s.id,
-    clientName: s.clientName || '—',
-    tag: s.tag || '—',
-    commessa: s.commessa || '—',
-    valvola: s.valvola || '—',
-    dn: s.dn || '—',
-    classe: s.classe || '—',
-    tipologia: s.tipologia || '—',
-    createdAt: s.createdAt || new Date().toISOString(),
-    updatedAt: s.updatedAt || new Date().toISOString()
-  };
   const idx = reportEntries.findIndex(r => r.id === s.id);
   if(idx >= 0){
-    reportEntries[idx] = entry;
+    // Aggiorna campi esistenti senza perdere dati manuali
+    const existing = reportEntries[idx];
+    existing.clientName = s.clientName || existing.clientName || '—';
+    existing.tag = s.tag || existing.tag || '—';
+    existing.commessa = s.commessa || existing.commessa || '—';
+    existing.valvola = s.valvola || existing.valvola || '—';
+    existing.dn = s.dn || existing.dn || '—';
+    existing.classe = s.classe || existing.classe || '—';
+    existing.tipologia = s.tipologia || existing.tipologia || '—';
+    existing.updatedAt = s.updatedAt || existing.updatedAt || '—';
+    // Stato completamento: aggiorna solo se la scheda è stata completata
+    if(s.completed) {
+      existing.completed = true;
+      existing.completedAt = s.completedAt || existing.completedAt || new Date().toISOString();
+    }
   } else {
-    reportEntries.push(entry);
+    // Nuova entry
+    reportEntries.push({
+      id: s.id,
+      clientName: s.clientName || '—',
+      tag: s.tag || '—',
+      commessa: s.commessa || '—',
+      valvola: s.valvola || '—',
+      dn: s.dn || '—',
+      classe: s.classe || '—',
+      tipologia: s.tipologia || '—',
+      insertedAt: s.createdAt || s.updatedAt || new Date().toISOString(),
+      updatedAt: s.updatedAt || new Date().toISOString(),
+      completed: s.completed || false,
+      completedAt: s.completedAt || null
+    });
   }
   saveReport();
 }
@@ -1276,8 +1293,8 @@ function clearAllReport(){
 }
 
 function openReportModal(){
-  const pwd = prompt('🔒 Inserisci la password per accedere al Report:');
-  if(pwd !== '2025'){ showToast('❌ Password errata','#c0392b'); return; }
+  const pwd = prompt('🔒 Inserisci il PIN per accedere al Report:');
+  if(pwd !== getCurrentPin()){ showToast('❌ PIN errato','#c0392b'); return; }
   loadReport();
   // Aggiorna report con le schede locali e cloud attuali (solo upsert, non rimuove)
   savedSchedeList.forEach(s => upsertReportEntry(s));
@@ -1311,10 +1328,12 @@ function renderReportContent(){
     html += '<div class="report-client-header">👤 ' + cName + ' — ' + entries.length + ' schede</div>';
     // ── TABELLA DESKTOP ──
     html += '<table class="report-table"><thead><tr>';
-    html += '<th>TAG</th><th>Commessa</th><th>Valvola</th><th>DN</th><th>Classe</th><th>Tipologia</th><th>Data</th><th></th>';
+    html += '<th>TAG</th><th>Commessa</th><th>Valvola</th><th>DN</th><th>Classe</th><th>Tipologia</th><th>Inserimento</th><th>Completamento</th><th>Stato</th><th></th>';
     html += '</tr></thead><tbody>';
     entries.forEach(r => {
-      const data = r.updatedAt ? new Date(r.updatedAt).toLocaleDateString('it-IT') : '—';
+      const dataIns = r.insertedAt ? new Date(r.insertedAt).toLocaleDateString('it-IT') : (r.createdAt ? new Date(r.createdAt).toLocaleDateString('it-IT') : '—');
+      const dataComp = r.completedAt ? new Date(r.completedAt).toLocaleDateString('it-IT') : '—';
+      const stato = r.completed ? '<span style="color:#27ae60;font-weight:700;">✅ Completa</span>' : '<span style="color:#e67e22;font-weight:700;">🔧 In corso</span>';
       html += '<tr>';
       html += '<td>' + (r.tag||'—') + '</td>';
       html += '<td>' + (r.commessa||'—') + '</td>';
@@ -1322,28 +1341,179 @@ function renderReportContent(){
       html += '<td>' + (r.dn||'—') + '</td>';
       html += '<td>' + (r.classe||'—') + '</td>';
       html += '<td>' + (r.tipologia||'—') + '</td>';
-      html += '<td>' + data + '</td>';
-      html += '<td><button class="report-del-btn" onclick="removeReportEntry(\'' + r.id + '\')">✕</button></td>';
+      html += '<td>' + dataIns + '</td>';
+      html += '<td>' + dataComp + '</td>';
+      html += '<td>' + stato + '</td>';
+      html += '<td style="white-space:nowrap;">';
+      html += '<button class="report-del-btn" style="background:#2980b9;color:white;margin-right:3px;" onclick="editReportEntry(\'' + r.id + '\')">✏️</button>';
+      html += '<button class="report-del-btn" onclick="removeReportEntry(\'' + r.id + '\')">✕</button>';
+      html += '</td>';
       html += '</tr>';
     });
     html += '</tbody></table>';
     // ── CARD MOBILE ──
     html += '<div class="report-card">';
     entries.forEach(r => {
-      const data = r.updatedAt ? new Date(r.updatedAt).toLocaleDateString('it-IT') : '—';
+      const dataIns = r.insertedAt ? new Date(r.insertedAt).toLocaleDateString('it-IT') : (r.createdAt ? new Date(r.createdAt).toLocaleDateString('it-IT') : '—');
+      const dataComp = r.completedAt ? new Date(r.completedAt).toLocaleDateString('it-IT') : '—';
+      const stato = r.completed ? '✅ Completa' : '🔧 In corso';
       html += '<div class="report-card-item">';
       html += '<div class="report-card-row"><span class="report-card-label">TAG</span><span class="report-card-value">' + (r.tag||'—') + '</span></div>';
       html += '<div class="report-card-row"><span class="report-card-label">Commessa</span><span class="report-card-value">' + (r.commessa||'—') + '</span></div>';
       html += '<div class="report-card-row"><span class="report-card-label">Valvola</span><span class="report-card-value">' + (r.valvola||'—') + '</span></div>';
       html += '<div class="report-card-row"><span class="report-card-label">DN / Classe</span><span class="report-card-value">' + (r.dn||'—') + ' / ' + (r.classe||'—') + '</span></div>';
       html += '<div class="report-card-row"><span class="report-card-label">Tipologia</span><span class="report-card-value">' + (r.tipologia||'—') + '</span></div>';
-      html += '<div class="report-card-row"><span class="report-card-label">Data</span><span class="report-card-value">' + data + '</span></div>';
-      html += '<div class="report-card-actions"><button class="report-del-btn" onclick="removeReportEntry(\'' + r.id + '\')">✕ Rimuovi</button></div>';
+      html += '<div class="report-card-row"><span class="report-card-label">Inserimento</span><span class="report-card-value">' + dataIns + '</span></div>';
+      html += '<div class="report-card-row"><span class="report-card-label">Completamento</span><span class="report-card-value">' + dataComp + '</span></div>';
+      html += '<div class="report-card-row"><span class="report-card-label">Stato</span><span class="report-card-value">' + stato + '</span></div>';
+      html += '<div class="report-card-actions">';
+      html += '<button class="report-del-btn" style="background:#2980b9;color:white;margin-right:6px;" onclick="editReportEntry(\'' + r.id + '\')">✏️ Modifica</button>';
+      html += '<button class="report-del-btn" onclick="removeReportEntry(\'' + r.id + '\')">✕ Rimuovi</button>';
+      html += '</div>';
       html += '</div>';
     });
     html += '</div>';
   });
   container.innerHTML = html;
+}
+
+// ── MODIFICA ENTRY DEL REPORT ──
+function editReportEntry(id){
+  const idx = reportEntries.findIndex(r => r.id === id);
+  if(idx < 0) return;
+  const r = reportEntries[idx];
+  // Crea un modal inline per la modifica
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay active';
+  overlay.id = 'edit-report-overlay';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:460px;">
+      <h3>✏️ Modifica Riga Report</h3>
+      <label>Cliente</label>
+      <input type="text" id="rep-edit-client" value="${(r.clientName||'').replace(/"/g,'&quot;')}">
+      <label>TAG</label>
+      <input type="text" id="rep-edit-tag" value="${(r.tag||'').replace(/"/g,'&quot;')}">
+      <label>Commessa</label>
+      <input type="text" id="rep-edit-commessa" value="${(r.commessa||'').replace(/"/g,'&quot;')}">
+      <label>Valvola</label>
+      <input type="text" id="rep-edit-valvola" value="${(r.valvola||'').replace(/"/g,'&quot;')}">
+      <label>DN</label>
+      <input type="text" id="rep-edit-dn" value="${(r.dn||'').replace(/"/g,'&quot;')}">
+      <label>Classe</label>
+      <input type="text" id="rep-edit-classe" value="${(r.classe||'').replace(/"/g,'&quot;')}">
+      <label>Tipologia</label>
+      <input type="text" id="rep-edit-tipologia" value="${(r.tipologia||'').replace(/"/g,'&quot;')}">
+      <label>Data Inserimento</label>
+      <input type="date" id="rep-edit-insertedAt" value="${r.insertedAt ? r.insertedAt.slice(0,10) : (r.createdAt ? r.createdAt.slice(0,10) : '')}">
+      <label>Data Completamento</label>
+      <input type="date" id="rep-edit-completedAt" value="${r.completedAt ? r.completedAt.slice(0,10) : ''}">
+      <label>Stato</label>
+      <select id="rep-edit-stato">
+        <option value="incorso" ${!r.completed?'selected':''}>🔧 In corso</option>
+        <option value="completa" ${r.completed?'selected':''}>✅ Completa</option>
+      </select>
+      <div class="modal-actions">
+        <button class="btn-sm outline" onclick="closeEditReport()">Annulla</button>
+        <button class="btn-sm success" onclick="saveEditReport('${id}')">💾 Salva</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function closeEditReport(){
+  const el = document.getElementById('edit-report-overlay');
+  if(el) el.remove();
+}
+
+function saveEditReport(id){
+  const idx = reportEntries.findIndex(r => r.id === id);
+  if(idx < 0) return;
+  const r = reportEntries[idx];
+  r.clientName = document.getElementById('rep-edit-client').value.trim() || '—';
+  r.tag = document.getElementById('rep-edit-tag').value.trim() || '—';
+  r.commessa = document.getElementById('rep-edit-commessa').value.trim() || '—';
+  r.valvola = document.getElementById('rep-edit-valvola').value.trim() || '—';
+  r.dn = document.getElementById('rep-edit-dn').value.trim() || '—';
+  r.classe = document.getElementById('rep-edit-classe').value.trim() || '—';
+  r.tipologia = document.getElementById('rep-edit-tipologia').value.trim() || '—';
+  const insDate = document.getElementById('rep-edit-insertedAt').value;
+  if(insDate) r.insertedAt = insDate + 'T00:00:00.000Z';
+  const compDate = document.getElementById('rep-edit-completedAt').value;
+  if(compDate) r.completedAt = compDate + 'T00:00:00.000Z';
+  else r.completedAt = null;
+  const stato = document.getElementById('rep-edit-stato').value;
+  r.completed = (stato === 'completa');
+  if(r.completed && !r.completedAt) r.completedAt = new Date().toISOString();
+  saveReport();
+  closeEditReport();
+  renderReportContent();
+  showToast('✅ Riga aggiornata','#27ae60');
+}
+
+// ── AGGIUNGI RIGA MANUALE AL REPORT ──
+function addManualReportEntry(){
+  const uid = 'manual_' + Date.now() + '_' + Math.random().toString(36).substr(2,6);
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay active';
+  overlay.id = 'edit-report-overlay';
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:460px;">
+      <h3>➕ Aggiungi Riga al Report</h3>
+      <label>Cliente</label>
+      <input type="text" id="rep-edit-client" placeholder="es. A2A, SONATRACH...">
+      <label>TAG</label>
+      <input type="text" id="rep-edit-tag" placeholder="es. 055EA/26">
+      <label>Commessa</label>
+      <input type="text" id="rep-edit-commessa" placeholder="">
+      <label>Valvola</label>
+      <input type="text" id="rep-edit-valvola" placeholder="">
+      <label>DN</label>
+      <input type="text" id="rep-edit-dn" placeholder="">
+      <label>Classe</label>
+      <input type="text" id="rep-edit-classe" placeholder="">
+      <label>Tipologia</label>
+      <input type="text" id="rep-edit-tipologia" placeholder="">
+      <label>Data Inserimento</label>
+      <input type="date" id="rep-edit-insertedAt">
+      <label>Data Completamento</label>
+      <input type="date" id="rep-edit-completedAt">
+      <label>Stato</label>
+      <select id="rep-edit-stato">
+        <option value="incorso">🔧 In corso</option>
+        <option value="completa">✅ Completa</option>
+      </select>
+      <div class="modal-actions">
+        <button class="btn-sm outline" onclick="closeEditReport()">Annulla</button>
+        <button class="btn-sm success" onclick="saveManualReportEntry('${uid}')">💾 Aggiungi</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function saveManualReportEntry(uid){
+  const clientName = document.getElementById('rep-edit-client').value.trim() || '—';
+  const completed = document.getElementById('rep-edit-stato').value === 'completa';
+  const insDate = document.getElementById('rep-edit-insertedAt').value;
+  const compDate = document.getElementById('rep-edit-completedAt').value;
+  const entry = {
+    id: uid,
+    clientName: clientName,
+    tag: document.getElementById('rep-edit-tag').value.trim() || '—',
+    commessa: document.getElementById('rep-edit-commessa').value.trim() || '—',
+    valvola: document.getElementById('rep-edit-valvola').value.trim() || '—',
+    dn: document.getElementById('rep-edit-dn').value.trim() || '—',
+    classe: document.getElementById('rep-edit-classe').value.trim() || '—',
+    tipologia: document.getElementById('rep-edit-tipologia').value.trim() || '—',
+    insertedAt: insDate ? insDate + 'T00:00:00.000Z' : null,
+    completedAt: compDate ? compDate + 'T00:00:00.000Z' : (completed ? new Date().toISOString() : null),
+    completed: completed,
+    updatedAt: new Date().toISOString()
+  };
+  reportEntries.push(entry);
+  saveReport();
+  closeEditReport();
+  renderReportContent();
+  showToast('✅ Riga aggiunta al report','#27ae60');
 }
 
 function printReport(){
@@ -3411,7 +3581,7 @@ setInterval(() => {
 // Il SW viene registrato solo su Chrome/Android/Desktop.
 if('serviceWorker' in navigator){
   const swCode=`
-const CACHE='tms-v8';
+const CACHE='tms-v10';
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-96.png'])).catch(()=>{}));
   self.skipWaiting();
