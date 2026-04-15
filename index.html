@@ -1262,8 +1262,21 @@ function changePin() {
     showToast('❌ I PIN non coincidono', '#c0392b');
     return;
   }
-  localStorage.setItem('tms_pin', newPin.trim());
-  showToast('✅ PIN aggiornato con successo!', '#27ae60');
+  const pin = newPin.trim();
+  localStorage.setItem('tms_pin', pin);
+  // Sincronizza il PIN sul cloud per tutti i dispositivi
+  fbPut('/config/pin', pin).catch(e => console.warn('PIN cloud sync error:', e));
+  showToast('✅ PIN aggiornato su tutti i dispositivi!', '#27ae60');
+}
+
+// Carica il PIN dal cloud all'avvio
+async function syncPinFromCloud(){
+  try{
+    const remotePin = await fbGet('/config/pin');
+    if(remotePin && typeof remotePin === 'string' && remotePin.trim()){
+      localStorage.setItem('tms_pin', remotePin.trim());
+    }
+  }catch(e){ console.warn('PIN cloud load error:', e); }
 }
 
 function openManuale() {
@@ -3808,7 +3821,7 @@ setInterval(() => {
 // Il SW viene registrato solo su Chrome/Android/Desktop.
 if('serviceWorker' in navigator){
   const swCode=`
-const CACHE='tms-v16';
+const CACHE='tms-v17';
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-96.png'])).catch(()=>{}));
   self.skipWaiting();
@@ -3836,6 +3849,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   setTimeout(async () => {
     await syncFromCloud();
     await loadTemplatesFromCloud();
+    await syncPinFromCloud();
     renderHome();
     startRealtimeSync();
   }, 800);
