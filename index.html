@@ -2187,25 +2187,44 @@ async function compressPhoto(dataUrl, maxW=1600, maxH=1600, quality=0.92){
   });
 }
 
-function addPhotos(input){
+async function addPhotos(input){
   const files=Array.from(input.files);
   if(!files.length) return;
-  let loaded=0;
-  showToast('⏳ Ottimizzazione foto...','#2980b9');
-  files.forEach(file=>{
-    const reader=new FileReader();
-    reader.onload=async e=>{
-      const compressed = await compressPhoto(e.target.result);
-      currentScheda.photos.push({dataUrl:compressed,label:'Figura '+(currentScheda.photos.length+1)});
-      loaded++;
-      if(loaded===files.length){
-        rerenderPhotos();
-        showToast('✅ '+files.length+' foto aggiunt'+(files.length===1?'a':'e'),'#27ae60');
-      }
-    };
-    reader.readAsDataURL(file);
-  });
-  input.value='';
+  input.value=''; // Resetta subito l'input per permettere re-selezione
+  showToast('⏳ Ottimizzazione '+files.length+' foto...','#2980b9');
+  let okCount = 0, errCount = 0;
+  // Processa sequenzialmente per evitare problemi di memoria/race condition
+  for(let i = 0; i < files.length; i++){
+    const file = files[i];
+    try {
+      // Leggi il file come dataURL
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = () => reject(new Error('Errore lettura file'));
+        reader.readAsDataURL(file);
+      });
+      // Comprimi
+      const compressed = await compressPhoto(dataUrl);
+      // Aggiungi alla scheda
+      currentScheda.photos.push({
+        dataUrl: compressed,
+        label: 'Figura ' + (currentScheda.photos.length + 1)
+      });
+      okCount++;
+      // Re-renderizza progressivamente ogni 3 foto per feedback visivo
+      if((i+1) % 3 === 0) rerenderPhotos();
+    } catch(err) {
+      console.error('Errore foto #'+(i+1)+':', err);
+      errCount++;
+    }
+  }
+  rerenderPhotos();
+  if(errCount === 0){
+    showToast('✅ '+okCount+' foto aggiunt'+(okCount===1?'a':'e'),'#27ae60');
+  } else {
+    showToast('⚠️ '+okCount+' ok, '+errCount+' errori','#e67e22');
+  }
 }
 function removePhoto(i){currentScheda.photos.splice(i,1);rerenderPhotos();}
 function rerenderPhotos(){
@@ -2432,26 +2451,40 @@ function renderSchedaSicurezza(){
 }
 
 function addPhotoSic(){document.getElementById('sic-photo-inp').click();}
-function handleSicPhotos(input){
+async function handleSicPhotos(input){
   const files=Array.from(input.files);
   if(!files.length) return;
-  let loaded=0;
-  showToast('⏳ Ottimizzazione foto...','#2980b9');
-  files.forEach(file=>{
-    const reader=new FileReader();
-    reader.onload=async e=>{
-      const compressed = await compressPhoto(e.target.result);
-      if(!currentScheda.photos) currentScheda.photos=[];
-      currentScheda.photos.push({dataUrl:compressed,label:'Figura '+(currentScheda.photos.length+1)});
-      loaded++;
-      if(loaded===files.length){
-        renderSchedaSicurezza();
-        showToast('✅ '+files.length+' foto aggiunt'+(files.length===1?'a':'e'),'#27ae60');
-      }
-    };
-    reader.readAsDataURL(file);
-  });
   input.value='';
+  if(!currentScheda.photos) currentScheda.photos=[];
+  showToast('⏳ Ottimizzazione '+files.length+' foto...','#2980b9');
+  let okCount = 0, errCount = 0;
+  for(let i = 0; i < files.length; i++){
+    const file = files[i];
+    try {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = () => reject(new Error('Errore lettura file'));
+        reader.readAsDataURL(file);
+      });
+      const compressed = await compressPhoto(dataUrl);
+      currentScheda.photos.push({
+        dataUrl: compressed,
+        label: 'Figura ' + (currentScheda.photos.length + 1)
+      });
+      okCount++;
+      if((i+1) % 3 === 0) renderSchedaSicurezza();
+    } catch(err) {
+      console.error('Errore foto #'+(i+1)+':', err);
+      errCount++;
+    }
+  }
+  renderSchedaSicurezza();
+  if(errCount === 0){
+    showToast('✅ '+okCount+' foto aggiunt'+(okCount===1?'a':'e'),'#27ae60');
+  } else {
+    showToast('⚠️ '+okCount+' ok, '+errCount+' errori','#e67e22');
+  }
 }
 
 
@@ -2905,47 +2938,56 @@ function buildExportHTML(){
   const noteLines=(s.note||'').split('\n').filter(x=>x.trim());
   const noteHTML=noteLines.length?'<ul>'+noteLines.map(l=>`<li>${l}</li>`).join('')+'</ul>':s.note||'&nbsp;';
 
-  // PAGINA 2: foto distribuite equamente su tutta la pagina A4
+  // PAGINE FOTOGRAFICHE: max 4 foto per pagina (2 righe × 2 colonne)
+  // Se le foto sono di più, si generano più pagine identiche nella struttura
   // Area disponibile per le foto (mm):
   //   297mm totale - 10mm top - 32mm footer - ~38mm header - ~10mm section-header = ~207mm
-  // Dividiamo per numero di righe con flex per riempire tutto lo spazio
   const photos=s.photos||[];
   let page2HTML='';
   if(photos.length>0){
-    const nRows = Math.ceil(photos.length/2);
-    // Altezza per ogni cella foto: area utile divisa per righe, meno gap
-    // Usiamo flex con flex:1 per riempire automaticamente — il CSS fa il resto
-    // Calcoliamo l'altezza esplicita per ogni img: (207mm - nRows*4mm gap) / nRows
-    const cellHeightMm = Math.floor((207 - nRows*4) / nRows);
-    const cellHeightPx = Math.round(cellHeightMm * 3.7795); // mm → px appross.
+    // Raggruppa le foto in chunk da 4 (2 righe × 2 colonne per pagina)
+    const PHOTOS_PER_PAGE = 4;
+    const totalPages = Math.ceil(photos.length / PHOTOS_PER_PAGE);
 
-    let rowsHTML = '';
-    for(let i=0; i<photos.length; i+=2){
-      const p1=photos[i], p2=photos[i+1]||null;
-      rowsHTML += `<div class="photo-row" style="height:${cellHeightMm}mm;">
-        <div class="photo-cell">
-          <img src="${p1.dataUrl}" style="max-height:${cellHeightMm-8}mm;" alt="">
-          <div class="fig-label">${p1.label||''}</div>
-        </div>
-        ${p2
-          ? `<div class="photo-cell">
-              <img src="${p2.dataUrl}" style="max-height:${cellHeightMm-8}mm;" alt="">
-              <div class="fig-label">${p2.label||''}</div>
-            </div>`
-          : '<div class="photo-cell"></div>'
-        }
-      </div>`;
-    }
+    for(let pageIdx=0; pageIdx<totalPages; pageIdx++){
+      const pagePhotos = photos.slice(pageIdx * PHOTOS_PER_PAGE, (pageIdx + 1) * PHOTOS_PER_PAGE);
+      const nRows = Math.ceil(pagePhotos.length / 2);
 
-    page2HTML=`
+      // Altezza cella: area utile (207mm) divisa per righe, meno i gap
+      const cellHeightMm = Math.floor((207 - nRows * 4) / nRows);
+
+      let rowsHTML = '';
+      for(let i=0; i<pagePhotos.length; i+=2){
+        const p1=pagePhotos[i], p2=pagePhotos[i+1]||null;
+        rowsHTML += `<div class="photo-row" style="height:${cellHeightMm}mm;">
+          <div class="photo-cell">
+            <img src="${p1.dataUrl}" style="max-height:${cellHeightMm-8}mm;" alt="">
+            <div class="fig-label">${p1.label||''}</div>
+          </div>
+          ${p2
+            ? `<div class="photo-cell">
+                <img src="${p2.dataUrl}" style="max-height:${cellHeightMm-8}mm;" alt="">
+                <div class="fig-label">${p2.label||''}</div>
+              </div>`
+            : '<div class="photo-cell"></div>'
+          }
+        </div>`;
+      }
+
+      const pageLabel = totalPages > 1
+        ? `REPORT FOTOGRAFICO (${pageIdx+1}/${totalPages})`
+        : 'REPORT FOTOGRAFICO';
+
+      page2HTML += `
 <div class="page">
   ${buildPageHeader(s,cName)}
-  <div class="section-header">REPORT FOTOGRAFICO</div>
+  <div class="section-header">${pageLabel}</div>
   <div class="photo-area" style="height:${nRows*cellHeightMm + (nRows-1)*4}mm;">
     ${rowsHTML}
   </div>
   ${buildPageFooter(s)}
 </div>`;
+    }
   }
 
   return `<!DOCTYPE html>
@@ -3821,7 +3863,7 @@ setInterval(() => {
 // Il SW viene registrato solo su Chrome/Android/Desktop.
 if('serviceWorker' in navigator){
   const swCode=`
-const CACHE='tms-v17';
+const CACHE='tms-v18';
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-96.png'])).catch(()=>{}));
   self.skipWaiting();
