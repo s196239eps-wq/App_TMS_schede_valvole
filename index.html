@@ -635,10 +635,10 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
           <li>Creazione schede con template personalizzabili</li>
           <li>Compilazione completa: dati tecnici, operazioni, tenute, foto e note</li>
           <li>Sincronizzazione in tempo reale tramite Firebase</li>
-          <li>Report lavori con storico completo</li>
+          <li>Report lavori con storico completo e filtro per data</li>
           <li>Esportazione in PDF, JSON e condivisione via WhatsApp/email</li>
           <li>Funzionamento offline (PWA)</li>
-          <li>Protezione con PIN per operazioni sensibili</li>
+          <li>PIN di sicurezza sincronizzato su tutti i dispositivi</li>
           <li>Interfaccia responsive auto-adattabile</li>
         </ul>
         <p><b>Tipi di scheda:</b> Scheda Standard, Enel Termico, Enel a Sfera, Valvola di Sicurezza, più template personalizzati importabili.</p>
@@ -715,28 +715,36 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
 
       <div class="man-section">
         <h3 class="man-h1">9. Report Lavori</h3>
-        <p>Panoramica di tutte le schede elaborate, raggruppate per cliente. Accesso protetto da PIN.</p>
+        <p>Panoramica di tutte le schede elaborate, raggruppate per cliente. Accesso protetto da PIN. Il report è sincronizzato su tutti i dispositivi tramite Firebase.</p>
         <p><b>Colonne:</b> TAG, Commessa, Valvola, DN, Classe, Tipologia, Data Inserimento, Data Completamento, Stato.</p>
         <p><b>Funzioni:</b></p>
         <ul>
-          <li><b>🖨️ Stampa</b> — Versione stampabile</li>
-          <li><b>➕ Aggiungi Riga</b> — Inserimento manuale (per schede eliminate)</li>
-          <li><b>✏️ Modifica</b> — Correggi tutti i dati di una riga</li>
-          <li><b>✕ Rimuovi</b> — Elimina una riga</li>
+          <li><b>🖨️ Stampa</b> — Versione stampabile del report (stampa anche il report filtrato)</li>
+          <li><b>➕ Aggiungi Riga</b> — Inserimento manuale di una riga (utile per schede eliminate dal cloud ma da conservare nello storico)</li>
+          <li><b>✏️ Modifica</b> — Modifica tutti i dati di una riga: cliente, TAG, date, stato, ecc.</li>
+          <li><b>✕ Rimuovi</b> — Elimina una riga dal report</li>
         </ul>
-        <p>⚠️ Il report è salvato in localStorage. I campi mancanti mostrano "—".</p>
+        <p><b>📅 Filtro per data:</b> Inserendo un intervallo temporale (da/a) e premendo "🔍 Filtra", vengono mostrate solo le schede entrate nelle date selezionate. Il filtro si basa sulla data di inserimento. Premere "Tutti" per tornare al report completo. Il report filtrato può essere stampato.</p>
+        <p>⚠️ Le schede vecchie che non hanno la data di inserimento mostrano "—" e non compaiono nei risultati filtrati.</p>
       </div>
 
       <div class="man-section">
         <h3 class="man-h1">10. Sincronizzazione Cloud</h3>
         <p>Firebase Realtime Database con connessione SSE (Server-Sent Events). Notifiche in tempo reale per creazione, completamento e eliminazione schede da parte di altri operatori. Merge intelligente in caso di modifiche simultanee.</p>
+        <p><b>Dati sincronizzati su tutti i dispositivi:</b></p>
+        <ul>
+          <li>Schede (creazione, modifica, completamento, eliminazione)</li>
+          <li>Template clienti (operazioni e tenute personalizzate)</li>
+          <li>Report lavori (tutte le modifiche, aggiunte e rimozioni)</li>
+          <li>PIN di sicurezza (un cambio si propaga a tutti i dispositivi)</li>
+        </ul>
       </div>
 
       <div class="man-section">
         <h3 class="man-h1">11. Gestione PIN</h3>
-        <p>PIN predefinito: <b>2025</b>. Protegge eliminazione schede e accesso al report.</p>
+        <p>PIN predefinito: <b>2025</b>. Protegge eliminazione schede (locali e cloud), accesso al report e riapertura schede completate.</p>
         <p><b>Cambiare PIN:</b> Pulsante "🔑 Cambia PIN" → inserire vecchio PIN → nuovo PIN → conferma.</p>
-        <p>⚠️ Il PIN è salvato localmente per ogni dispositivo.</p>
+        <p>Il PIN è sincronizzato tramite Firebase: cambiandolo su un dispositivo, viene aggiornato automaticamente su tutti gli altri all'avvio dell'app.</p>
       </div>
 
       <div class="man-section">
@@ -763,6 +771,15 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
       <button class="btn-sm" style="background:#8e44ad;" onclick="addManualReportEntry()">➕ Aggiungi Riga</button>
       <button class="btn-sm" style="background:#e74c3c;" onclick="clearAllReport()">🗑 Svuota Report</button>
       <button class="btn-sm outline" onclick="closeModal('report-modal')">Chiudi</button>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;background:white;padding:10px 12px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+      <span style="font-size:12px;font-weight:700;color:#2c3e50;">📅 Filtra per data:</span>
+      <label style="font-size:11px;color:#555;">Da</label>
+      <input type="date" id="report-date-from" style="border:1px solid #ddd;border-radius:4px;padding:5px 8px;font-size:12px;">
+      <label style="font-size:11px;color:#555;">A</label>
+      <input type="date" id="report-date-to" style="border:1px solid #ddd;border-radius:4px;padding:5px 8px;font-size:12px;">
+      <button class="btn-sm" style="background:#2980b9;" onclick="filterReportByDate()">🔍 Filtra</button>
+      <button class="btn-sm outline" onclick="resetReportFilter()">Tutti</button>
     </div>
     <div id="report-content"></div>
   </div>
@@ -1544,15 +1561,16 @@ async function openReportModal(){
   openModal('report-modal');
 }
 
-function renderReportContent(){
+function renderReportContent(filteredEntries){
   const container = document.getElementById('report-content');
-  if(!reportEntries.length){
-    container.innerHTML = '<p style="text-align:center;color:#999;padding:30px 0;">Nessuna scheda nel report.</p>';
+  const entries = filteredEntries || reportEntries;
+  if(!entries.length){
+    container.innerHTML = '<p style="text-align:center;color:#999;padding:30px 0;">Nessuna scheda nel report'+(filteredEntries?' per il periodo selezionato':'')+'. </p>';
     return;
   }
   // Raggruppa per cliente
   const grouped = {};
-  reportEntries.forEach(r => {
+  entries.forEach(r => {
     const key = r.clientName || '—';
     if(!grouped[key]) grouped[key] = [];
     grouped[key].push(r);
@@ -1760,6 +1778,40 @@ function printReport(){
     window.print();
     setTimeout(()=>{ document.body.classList.remove('printing-report'); }, 500);
   }, 200);
+}
+
+// ── FILTRO REPORT PER DATA ──
+function filterReportByDate(){
+  const fromVal = document.getElementById('report-date-from').value;
+  const toVal = document.getElementById('report-date-to').value;
+  if(!fromVal || !toVal){
+    showToast('⚠️ Inserisci entrambe le date','#e67e22');
+    return;
+  }
+  const fromDate = new Date(fromVal + 'T00:00:00');
+  const toDate = new Date(toVal + 'T23:59:59');
+  if(fromDate > toDate){
+    showToast('⚠️ La data iniziale deve essere prima di quella finale','#e67e22');
+    return;
+  }
+  const filtered = reportEntries.filter(r => {
+    // Usa insertedAt (data inserimento) o createdAt come fallback
+    const dateStr = r.insertedAt || r.createdAt || r.updatedAt;
+    if(!dateStr || dateStr === '—') return false;
+    const entryDate = new Date(dateStr);
+    return entryDate >= fromDate && entryDate <= toDate;
+  });
+  renderReportContent(filtered);
+  const fromFmt = fromDate.toLocaleDateString('it-IT');
+  const toFmt = toDate.toLocaleDateString('it-IT');
+  showToast('📅 '+filtered.length+' schede dal '+fromFmt+' al '+toFmt,'#2980b9');
+}
+
+function resetReportFilter(){
+  document.getElementById('report-date-from').value = '';
+  document.getElementById('report-date-to').value = '';
+  renderReportContent();
+  showToast('📊 Report completo','#2980b9');
 }
 
 // =================== TEMPLATE EDITOR ===================
@@ -2938,27 +2990,21 @@ function buildExportHTML(){
   const noteLines=(s.note||'').split('\n').filter(x=>x.trim());
   const noteHTML=noteLines.length?'<ul>'+noteLines.map(l=>`<li>${l}</li>`).join('')+'</ul>':s.note||'&nbsp;';
 
-  // PAGINE FOTOGRAFICHE: max 4 foto per pagina (2 righe × 2 colonne)
-  // Se le foto sono di più, si generano più pagine identiche nella struttura
-  // Area disponibile per le foto (mm):
-  //   297mm totale - 10mm top - 32mm footer - ~38mm header - ~10mm section-header = ~207mm
+  // PAGINE FOTO: max 4 foto per pagina (griglia 2x2), ogni pagina con intestazione e footer
   const photos=s.photos||[];
-  let page2HTML='';
+  let photoPagesHTML='';
   if(photos.length>0){
-    // Raggruppa le foto in chunk da 4 (2 righe × 2 colonne per pagina)
-    const PHOTOS_PER_PAGE = 4;
-    const totalPages = Math.ceil(photos.length / PHOTOS_PER_PAGE);
-
-    for(let pageIdx=0; pageIdx<totalPages; pageIdx++){
-      const pagePhotos = photos.slice(pageIdx * PHOTOS_PER_PAGE, (pageIdx + 1) * PHOTOS_PER_PAGE);
+    // Spezza le foto in gruppi da 4
+    const photosPerPage = 4;
+    const pageCount = Math.ceil(photos.length / photosPerPage);
+    for(let p = 0; p < pageCount; p++){
+      const pagePhotos = photos.slice(p * photosPerPage, (p+1) * photosPerPage);
       const nRows = Math.ceil(pagePhotos.length / 2);
-
-      // Altezza cella: area utile (207mm) divisa per righe, meno i gap
+      // Area utile per foto: ~207mm, divisa per 2 righe max
       const cellHeightMm = Math.floor((207 - nRows * 4) / nRows);
-
       let rowsHTML = '';
-      for(let i=0; i<pagePhotos.length; i+=2){
-        const p1=pagePhotos[i], p2=pagePhotos[i+1]||null;
+      for(let i = 0; i < pagePhotos.length; i += 2){
+        const p1 = pagePhotos[i], p2 = pagePhotos[i+1] || null;
         rowsHTML += `<div class="photo-row" style="height:${cellHeightMm}mm;">
           <div class="photo-cell">
             <img src="${p1.dataUrl}" style="max-height:${cellHeightMm-8}mm;" alt="">
@@ -2973,15 +3019,11 @@ function buildExportHTML(){
           }
         </div>`;
       }
-
-      const pageLabel = totalPages > 1
-        ? `REPORT FOTOGRAFICO (${pageIdx+1}/${totalPages})`
-        : 'REPORT FOTOGRAFICO';
-
-      page2HTML += `
+      const pageLabel = pageCount > 1 ? ' (' + (p+1) + '/' + pageCount + ')' : '';
+      photoPagesHTML += `
 <div class="page">
   ${buildPageHeader(s,cName)}
-  <div class="section-header">${pageLabel}</div>
+  <div class="section-header">REPORT FOTOGRAFICO${pageLabel}</div>
   <div class="photo-area" style="height:${nRows*cellHeightMm + (nRows-1)*4}mm;">
     ${rowsHTML}
   </div>
@@ -3015,7 +3057,7 @@ function buildExportHTML(){
   ${buildPageFooter(s)}
 </div>
 
-${page2HTML}
+${photoPagesHTML}
 
 <!-- TMS_SCHEDA_DATA:${JSON.stringify(s)}-->
 </body></html>`;
@@ -3863,7 +3905,7 @@ setInterval(() => {
 // Il SW viene registrato solo su Chrome/Android/Desktop.
 if('serviceWorker' in navigator){
   const swCode=`
-const CACHE='tms-v18';
+const CACHE='tms-v21';
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['./', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './favicon-96.png'])).catch(()=>{}));
   self.skipWaiting();
