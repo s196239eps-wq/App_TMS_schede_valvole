@@ -1228,6 +1228,8 @@ function normalizeScheda(s) {
   if(typeof s.completed !== 'boolean') s.completed = false;
   if(!s.completedAt) s.completedAt = null;
   if(!s.completedBy) s.completedBy = null;
+  if(typeof s.certPdfBase64 === 'undefined') s.certPdfBase64 = null;
+  if(!Array.isArray(s.certPdfPages)) s.certPdfPages = [];
   // Normalizza campi specifici SICUREZZA
   if(s.type === 'SICUREZZA') {
     if(!s.usura || typeof s.usura !== 'object') s.usura = {corpo:'',sede:'',otturatore:'',stelo:'',molla:''};
@@ -2068,6 +2070,20 @@ function renderScheda(){
       <div id="photo-grid">${buildPhotosGrid(s.photos)}</div>
     </div>
 
+    <div class="section-header">PDF CERTIFICATO</div>
+    <div class="photo-section">
+      <div class="photo-controls">
+        <button class="btn-sm" style="background:#8e44ad;" onclick="document.getElementById('cert-pdf-inp').click()">📎 Inserisci PDF Certificato</button>
+        <input type="file" id="cert-pdf-inp" accept="application/pdf" style="display:none" onchange="attachCertPdf(this)">
+        ${(s.certPdfPages && s.certPdfPages.length) ? `<button class="btn-sm danger" id="btn-remove-cert-pdf" onclick="removeCertPdf()">🗑 Rimuovi PDF</button>` : ''}
+      </div>
+      <div id="cert-pdf-status" style="font-size:12px;color:#555;padding:6px 0;">
+        ${(s.certPdfPages && s.certPdfPages.length)
+          ? `<span style="color:#27ae60;font-weight:700;">✅ PDF certificato allegato (${s.certPdfPages.length} pagin${s.certPdfPages.length===1?'a':'e'})</span>`
+          : `<span style="color:#aaa;">Nessun PDF certificato allegato</span>`}
+      </div>
+    </div>
+
     <div class="page-footer">
       <div class="page-footer-divline">
         <div class="page-footer-ved"><img src="${VED_IMG}" alt="VED"></div>
@@ -2282,6 +2298,99 @@ function removePhoto(i){currentScheda.photos.splice(i,1);rerenderPhotos();}
 function rerenderPhotos(){
   const g=document.getElementById('photo-grid');
   if(g) g.innerHTML=buildPhotosGrid(currentScheda.photos);
+}
+
+// ── PDF CERTIFICATO ──────────────────────────────────────────────────
+// Carica PDF.js on-demand dalla CDN e renderizza ogni pagina come immagine
+async function _loadPdfJs(){
+  if(window.pdfjsLib) return window.pdfjsLib;
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      resolve(window.pdfjsLib);
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+async function attachCertPdf(input){
+  const file = input.files[0];
+  if(!file) return;
+  input.value = '';
+  showToast('\u23f3 Conversione PDF in corso...','#8e44ad');
+  try{
+    // Leggi il file come ArrayBuffer
+    const arrayBuffer = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.onerror = () => reject(new Error('Errore lettura file'));
+      reader.readAsArrayBuffer(file);
+    });
+
+    // Carica PDF.js
+    const pdfjsLib = await _loadPdfJs();
+
+    // Carica il documento PDF
+    const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const numPages = pdfDoc.numPages;
+
+    showToast('\u23f3 Rendering ' + numPages + ' pagine...','#8e44ad');
+
+    // Renderizza ogni pagina come immagine JPEG
+    const pages = [];
+    for(let pageNum = 1; pageNum <= numPages; pageNum++){
+      const page = await pdfDoc.getPage(pageNum);
+      // Scala 2x per qualità adeguata alla stampa
+      const scale = 2.0;
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      pages.push({
+        dataUrl: canvas.toDataURL('image/jpeg', 0.92),
+        width: viewport.width,
+        height: viewport.height
+      });
+    }
+
+    // Salva le pagine renderizzate (non il PDF grezzo — troppo pesante per Firebase)
+    currentScheda.certPdfBase64 = 'rendered'; // flag di presenza
+    currentScheda.certPdfPages = pages;
+
+    // Aggiorna UI
+    const statusEl = document.getElementById('cert-pdf-status');
+    if(statusEl) statusEl.innerHTML = '<span style="color:#27ae60;font-weight:700;">\u2705 PDF certificato allegato (' + numPages + ' pagin' + (numPages===1?'a':'e') + ')</span>';
+    const controls = document.getElementById('cert-pdf-inp').parentElement;
+    if(controls && !document.getElementById('btn-remove-cert-pdf')){
+      const delBtn = document.createElement('button');
+      delBtn.id = 'btn-remove-cert-pdf';
+      delBtn.className = 'btn-sm danger';
+      delBtn.textContent = '\ud83d\uddd1 Rimuovi PDF';
+      delBtn.onclick = removeCertPdf;
+      controls.appendChild(delBtn);
+    }
+    showToast('\u2705 PDF certificato allegato (' + numPages + ' pagine)!','#27ae60');
+  }catch(e){
+    console.error('Errore PDF certificato:', e);
+    showToast('\u274c Errore elaborazione PDF','#c0392b');
+  }
+}
+
+function removeCertPdf(){
+  if(!confirm('Rimuovere il PDF certificato allegato?')) return;
+  currentScheda.certPdfBase64 = null;
+  currentScheda.certPdfPages = [];
+  const statusEl = document.getElementById('cert-pdf-status');
+  if(statusEl) statusEl.innerHTML = '<span style="color:#aaa;">Nessun PDF certificato allegato</span>';
+  const delBtn = document.getElementById('btn-remove-cert-pdf');
+  if(delBtn) delBtn.remove();
+  showToast('\ud83d\uddd1 PDF certificato rimosso','#e67e22');
 }
 
 // SAVE
@@ -3032,6 +3141,27 @@ function buildExportHTML(){
     }
   }
 
+  // PAGINE PDF CERTIFICATO (se allegato) — ogni pagina del PDF su una pagina A4 separata
+  let certPdfPageHTML = '';
+  const certPages = Array.isArray(s.certPdfPages) ? s.certPdfPages : [];
+  if(certPages.length > 0){
+    const total = certPages.length;
+    certPages.forEach((pg, idx) => {
+      const pageLabel = total > 1 ? ' (' + (idx+1) + '/' + total + ')' : '';
+      certPdfPageHTML += `
+<div class="page" style="padding:0;">
+  <div style="width:210mm;height:297mm;display:flex;flex-direction:column;">
+    <div style="background:#e0e0e0;font-weight:800;font-size:11px;padding:4px 10px;border-bottom:1px solid #888;text-transform:uppercase;letter-spacing:0.5px;text-align:center;flex-shrink:0;">
+      ALLEGATO — PDF CERTIFICATO${pageLabel}
+    </div>
+    <div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;background:white;">
+      <img src="${pg.dataUrl}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block;" alt="Certificato pagina ${idx+1}">
+    </div>
+  </div>
+</div>`;
+    });
+  }
+
   return `<!DOCTYPE html>
 <html lang="it"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -3058,6 +3188,8 @@ function buildExportHTML(){
 </div>
 
 ${photoPagesHTML}
+
+${certPdfPageHTML}
 
 <!-- TMS_SCHEDA_DATA:${JSON.stringify(s)}-->
 </body></html>`;
