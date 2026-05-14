@@ -2294,7 +2294,12 @@ async function addPhotos(input){
     showToast('⚠️ '+okCount+' ok, '+errCount+' errori','#e67e22');
   }
 }
-function removePhoto(i){currentScheda.photos.splice(i,1);rerenderPhotos();}
+function removePhoto(i){
+  // Conferma esplicita per prevenire cancellazioni accidentali
+  if(!confirm('🗑️ Eliminare questa foto?\n\nQuesta azione non può essere annullata.\nLa foto verrà rimossa dalla scheda.')) return;
+  currentScheda.photos.splice(i,1);
+  rerenderPhotos();
+}
 function rerenderPhotos(){
   const g=document.getElementById('photo-grid');
   if(g) g.innerHTML=buildPhotosGrid(currentScheda.photos);
