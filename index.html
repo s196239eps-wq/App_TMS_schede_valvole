@@ -507,6 +507,9 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
 }
 
 </style>
+<!-- Firebase SDK (compat) per Authentication anonima — caricato prima del body -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 
@@ -532,6 +535,8 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
     <button class="btn-sm" onclick="syncFromCloud()" id="btn-sync-cloud"
             style="padding:4px 10px;font-size:11px;margin:0 0 0 6px;">🔄</button>
     <span style="font-size:11px;color:#aaa;" id="cloud-last-sync"></span>
+    <!-- Indicatore versione autenticata (visibile solo all'admin) -->
+    <span id="auth-indicator" title="Autenticazione attiva" style="display:none;width:6px;height:6px;border-radius:50%;background:#2980b9;margin-left:6px;"></span>
     <!-- Hidden inputs for programmatic use -->
     <input type="hidden" id="gas-url-input">
     <div id="cloud-actions" style="display:none;"></div>
@@ -3608,6 +3613,116 @@ const FB_CONFIG = {
 // Firebase Realtime Database REST API è CORS-friendly per definizione
 const FB_BASE = 'https://tms-schede-default-rtdb.europe-west1.firebasedatabase.app/schede';
 
+// ═══════════════════════════════════════════════════════════════════
+// AUTH ANONIMA — Firebase Authentication
+// Token viene aggiunto automaticamente alle richieste REST quando disponibile.
+// Se le Firebase Rules sono ancora aperte, l'app funziona anche senza token.
+// Se le Rules vengono chiuse (auth != null), solo le sessioni autenticate accedono.
+// ═══════════════════════════════════════════════════════════════════
+let _fbAuthToken = null;     // ID token corrente
+let _fbAuthUid   = null;     // UID utente anonimo
+let _fbAuthReady = false;    // true quando il primo login è completato
+let _fbApp       = null;
+
+// Inizializza Firebase App + Auth e fa login anonimo
+async function initFirebaseAuth(){
+  try{
+    if(typeof firebase === 'undefined' || !firebase.initializeApp){
+      console.warn('Firebase SDK non caricato — l\'app continua senza auth');
+      return;
+    }
+    if(!_fbApp){
+      _fbApp = firebase.initializeApp(FB_CONFIG);
+    }
+    // Listener: aggiorna token a ogni cambio di stato auth
+    firebase.auth().onAuthStateChanged(async (user)=>{
+      if(user){
+        _fbAuthUid = user.uid;
+        try{
+          _fbAuthToken = await user.getIdToken();
+          _fbAuthReady = true;
+          showAuthIndicator(true);
+          // Log presenza per dashboard admin (silenzioso)
+          _logAuthCheck(user.uid).catch(()=>{});
+          // Refresh token periodicamente (ogni 50min, i token scadono dopo 1h)
+          setInterval(async ()=>{
+            try{ _fbAuthToken = await firebase.auth().currentUser.getIdToken(true); }catch(e){}
+          }, 50*60*1000);
+        }catch(e){ console.warn('Auth getIdToken error:', e); }
+      } else {
+        _fbAuthToken = null;
+        _fbAuthUid = null;
+        showAuthIndicator(false);
+      }
+    });
+    // Login anonimo (no UI, no password)
+    await firebase.auth().signInAnonymously();
+  }catch(e){
+    // Se l'auth fallisce, l'app DEVE continuare a funzionare (modalità safety)
+    console.warn('Firebase Auth init failed (fallback senza auth):', e);
+    showAuthIndicator(false);
+  }
+}
+
+// Mostra/nasconde il pallino blu (visibile a chi sa cosa cercare)
+function showAuthIndicator(active){
+  const el = document.getElementById('auth-indicator');
+  if(el) el.style.display = active ? 'inline-block' : 'none';
+}
+
+// Aggiunge ?auth=TOKEN all'URL Firebase se disponibile
+function _authQS(){
+  return _fbAuthToken ? '?auth=' + encodeURIComponent(_fbAuthToken) : '';
+}
+
+// Helper: combina path con eventuale query string + auth
+function _fbUrl(path, extraQS){
+  // path è tipo '/meta/abc' → diventa FB_BASE + '/meta/abc.json?...'
+  let url = FB_BASE + path + '.json';
+  const parts = [];
+  if(_fbAuthToken) parts.push('auth=' + encodeURIComponent(_fbAuthToken));
+  if(extraQS) parts.push(extraQS);
+  if(parts.length) url += '?' + parts.join('&');
+  return url;
+}
+
+// Log non bloccante: traccia che questo dispositivo si è autenticato (per dashboard admin)
+async function _logAuthCheck(uid){
+  try{
+    // Identificativo dispositivo stabile per tablet
+    let deviceId = localStorage.getItem('tms_device_id');
+    if(!deviceId){
+      deviceId = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+      localStorage.setItem('tms_device_id', deviceId);
+    }
+    const userName = localStorage.getItem('tms_username') || 'Sconosciuto';
+    const payload = {
+      uid: uid,
+      username: userName,
+      lastSeen: new Date().toISOString(),
+      version: 'auth_v1',
+      userAgent: (navigator.userAgent||'').slice(0,200)
+    };
+    // PUT su /_auth_check/{deviceId} — best effort, ignora errori
+    const url = FB_BASE + '/_auth_check/' + deviceId + '.json' + _authQS();
+    await fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+  }catch(e){ /* silenzioso */ }
+}
+
+// Funzione di debug per l'admin: aprire console e digitare tmsCheckAuth()
+window.tmsCheckAuth = function(){
+  const info = {
+    authReady: _fbAuthReady,
+    uid: _fbAuthUid,
+    hasToken: !!_fbAuthToken,
+    tokenPreview: _fbAuthToken ? _fbAuthToken.slice(0,30)+'...' : null,
+    deviceId: localStorage.getItem('tms_device_id') || '(non assegnato)',
+    username: localStorage.getItem('tms_username') || '(non impostato)'
+  };
+  console.table(info);
+  return info;
+};
+
 let cloudSchedeList = [];
 let _cloudSyncing = false;
 let _fbListener = null; // per future implementazioni real-time con EventSource
@@ -3630,13 +3745,13 @@ function updateCloudUI() {
 
 // ── Firebase REST helpers ───────────────────────────────────────────
 async function fbGet(path) {
-  const resp = await fetch(FB_BASE + path + '.json', {method:'GET'});
+  const resp = await fetch(_fbUrl(path), {method:'GET'});
   if(!resp.ok) throw new Error('Firebase GET error: ' + resp.status);
   return resp.json();
 }
 
 async function fbPut(path, data) {
-  const resp = await fetch(FB_BASE + path + '.json', {
+  const resp = await fetch(_fbUrl(path), {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(data)
@@ -3646,7 +3761,7 @@ async function fbPut(path, data) {
 }
 
 async function fbDelete(path) {
-  const resp = await fetch(FB_BASE + path + '.json', {method:'DELETE'});
+  const resp = await fetch(_fbUrl(path), {method:'DELETE'});
   if(!resp.ok) throw new Error('Firebase DELETE error: ' + resp.status);
   return resp.json();
 }
@@ -3913,7 +4028,9 @@ function startRealtimeSync() {
   // Chiudi eventuale connessione precedente
   if(_sseSource) { _sseSource.close(); _sseSource = null; }
 
-  const sseUrl = FB_BASE + '/meta.json?format=export&Accept=text/event-stream';
+  // SSE URL: include token auth se disponibile (per quando le Rules saranno chiuse)
+  let sseUrl = FB_BASE + '/meta.json?format=export&Accept=text/event-stream';
+  if(_fbAuthToken) sseUrl += '&auth=' + encodeURIComponent(_fbAuthToken);
 
   try {
     _sseSource = new EventSource(sseUrl);
@@ -4066,6 +4183,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   loadReport();
   renderHome();
   updateCloudUI();
+  // Auth anonima in background — non blocca il caricamento
+  initFirebaseAuth().catch(e=>console.warn('Auth bootstrap warning:', e));
   // Prima sync immediata, poi avvia real-time SSE
   setTimeout(async () => {
     await syncFromCloud();
