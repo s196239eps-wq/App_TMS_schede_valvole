@@ -791,6 +791,11 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
       <input type="text" id="report-search-sn" placeholder="es. SN12345" style="border:1px solid #ddd;border-radius:4px;padding:5px 8px;font-size:12px;flex:1;min-width:140px;" oninput="filterReportBySN()">
       <button class="btn-sm outline" onclick="document.getElementById('report-search-sn').value='';filterReportBySN()">✕ Pulisci</button>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;background:white;padding:10px 12px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+      <span style="font-size:12px;font-weight:700;color:#2c3e50;">🔎 Cerca Commessa:</span>
+      <input type="text" id="report-search-commessa" placeholder="es. C-2026-001" style="border:1px solid #ddd;border-radius:4px;padding:5px 8px;font-size:12px;flex:1;min-width:140px;" oninput="filterReportByCommessa()">
+      <button class="btn-sm outline" onclick="document.getElementById('report-search-commessa').value='';filterReportByCommessa()">✕ Pulisci</button>
+    </div>
     <div id="report-content"></div>
   </div>
 </div>
@@ -1837,6 +1842,8 @@ function resetReportFilter(){
   document.getElementById('report-date-to').value = '';
   const snEl = document.getElementById('report-search-sn');
   if(snEl) snEl.value = '';
+  const cmEl = document.getElementById('report-search-commessa');
+  if(cmEl) cmEl.value = '';
   renderReportContent();
   showToast('📊 Report completo','#2980b9');
 }
@@ -1853,6 +1860,22 @@ function filterReportBySN(){
   const filtered = reportEntries.filter(r => {
     const sn = (r.serialNumber || '').toLowerCase();
     return sn.includes(q);
+  });
+  renderReportContent(filtered);
+}
+
+// ── FILTRO REPORT PER COMMESSA (ricerca parziale, case-insensitive) ──
+function filterReportByCommessa(){
+  const inp = document.getElementById('report-search-commessa');
+  if(!inp) return;
+  const q = inp.value.trim().toLowerCase();
+  if(q === ''){
+    renderReportContent();
+    return;
+  }
+  const filtered = reportEntries.filter(r => {
+    const cm = (r.commessa || '').toLowerCase();
+    return cm.includes(q);
   });
   renderReportContent(filtered);
 }
@@ -1992,7 +2015,7 @@ function buildPhotosGrid(photos){
           <button class="photo-cell-del" onclick="event.stopPropagation();removePhoto(${idx})">×</button>
           <img src="${p.dataUrl}" style="max-height:${photoSize}px;max-width:100%;cursor:pointer;" onclick="swapPhotoClick(${idx})" alt="" title="Clicca per scambiare di posizione">
         </div>
-        <div class="photo-label"><input value="${p.label||'Figura '+(idx+1)}" onchange="currentScheda.photos[${idx}].label=this.value"></div>
+        <div class="photo-label"><input value="${escAttr(p.label||'Figura '+(idx+1))}" onchange="currentScheda.photos[${idx}].label=this.value"></div>
       </td>`;
     }
     rows+=`<tr>${pCell(p1,i)}${pCell(p2,i+1)}</tr>`;
@@ -2032,17 +2055,17 @@ function renderScheda(){
   if(s.hasN){
     tHdr=`<th style="width:40%">Descrizione</th><th style="width:8%">N°</th><th style="width:26%">Mat.</th><th style="width:26%">Dim.</th>`;
     tRows=s.tenute.map((t,i)=>`<tr>
-      <td><input value="${t.nome||''}" onchange="currentScheda.tenute[${i}].nome=this.value"></td>
-      <td><input value="${t.n||''}" onchange="currentScheda.tenute[${i}].n=this.value" style="text-align:center"></td>
-      <td><input value="${t.materiale||''}" onchange="currentScheda.tenute[${i}].materiale=this.value"></td>
-      <td><input value="${t.dimensioni||''}" onchange="currentScheda.tenute[${i}].dimensioni=this.value"></td>
+      <td><input value="${escAttr(t.nome||'')}" onchange="currentScheda.tenute[${i}].nome=this.value"></td>
+      <td><input value="${escAttr(t.n||'')}" onchange="currentScheda.tenute[${i}].n=this.value" style="text-align:center"></td>
+      <td><input value="${escAttr(t.materiale||'')}" onchange="currentScheda.tenute[${i}].materiale=this.value"></td>
+      <td><input value="${escAttr(t.dimensioni||'')}" onchange="currentScheda.tenute[${i}].dimensioni=this.value"></td>
     </tr>`).join('');
   } else {
     tHdr=`<th style="width:40%">TENUTE</th><th style="width:30%">MATERIALE</th><th style="width:30%">DIMENSIONI</th>`;
     tRows=s.tenute.map((t,i)=>`<tr>
-      <td><input value="${t.nome||''}" onchange="currentScheda.tenute[${i}].nome=this.value"></td>
-      <td><input value="${t.materiale||''}" onchange="currentScheda.tenute[${i}].materiale=this.value"></td>
-      <td><input value="${t.dimensioni||''}" onchange="currentScheda.tenute[${i}].dimensioni=this.value"></td>
+      <td><input value="${escAttr(t.nome||'')}" onchange="currentScheda.tenute[${i}].nome=this.value"></td>
+      <td><input value="${escAttr(t.materiale||'')}" onchange="currentScheda.tenute[${i}].materiale=this.value"></td>
+      <td><input value="${escAttr(t.dimensioni||'')}" onchange="currentScheda.tenute[${i}].dimensioni=this.value"></td>
     </tr>`).join('');
   }
 
@@ -2062,7 +2085,7 @@ function renderScheda(){
           <div class="header-right-top">Revalve</div>
           <div class="header-right-ord">
             <span>ORD:</span>
-            <input value="${s.ord||''}" onchange="currentScheda.ord=this.value" placeholder="num. ordine">
+            <input value="${escAttr(s.ord||'')}" onchange="currentScheda.ord=this.value" placeholder="num. ordine">
           </div>
         </div>
       </div>
@@ -2070,25 +2093,25 @@ function renderScheda(){
         <div class="header-row">
           <div class="header-label">Cliente</div>
           <div class="header-value">
-            <input value="${s.clientName||''}" onchange="currentScheda.clientName=this.value;document.getElementById('form-title').textContent=this.value;" style="font-weight:700;">
+            <input value="${escAttr(s.clientName||'')}" onchange="currentScheda.clientName=this.value;document.getElementById('form-title').textContent=this.value;" style="font-weight:700;">
           </div>
         </div>
         <div class="header-row">
           <div class="header-value">
             <span>COMMESSA N°:</span>
-            <input value="${s.commessa||''}" onchange="currentScheda.commessa=this.value" placeholder="es. 26/00061 A3">
+            <input value="${escAttr(s.commessa||'')}" onchange="currentScheda.commessa=this.value" placeholder="es. 26/00061 A3">
           </div>
         </div>
         <div class="header-row">
           <div class="header-label">Impianto</div>
           <div class="header-value">
-            <input value="${s.impianto||''}" onchange="currentScheda.impianto=this.value">
+            <input value="${escAttr(s.impianto||'')}" onchange="currentScheda.impianto=this.value">
           </div>
         </div>
         <div class="header-row">
           <div class="header-value">
             <span>TAG</span>
-            <input value="${s.tag||''}" onchange="currentScheda.tag=this.value" placeholder="es. 005A/26">
+            <input value="${escAttr(s.tag||'')}" onchange="currentScheda.tag=this.value" placeholder="es. 005A/26">
           </div>
         </div>
       </div>
@@ -2096,11 +2119,11 @@ function renderScheda(){
 
     <div class="section-header">DATI IDENTIFICATIVI</div>
     <div class="dati-table">
-      <div class="dati-row"><div class="dati-label">Valvola:</div><input class="dati-input" value="${s.valvola||''}" onchange="currentScheda.valvola=this.value"></div>
-      <div class="dati-row"><div class="dati-label">DN:</div><input class="dati-input" value="${s.dn||''}" onchange="currentScheda.dn=this.value"></div>
-      <div class="dati-row"><div class="dati-label">Classe:</div><input class="dati-input" value="${s.classe||''}" onchange="currentScheda.classe=this.value"></div>
-      <div class="dati-row"><div class="dati-label">Tipologia:</div><input class="dati-input" value="${s.tipologia||''}" onchange="currentScheda.tipologia=this.value"></div>
-      <div class="dati-row"><div class="dati-label">Serial Number:</div><input class="dati-input" value="${s.serialNumber||''}" placeholder="(opzionale)" onchange="currentScheda.serialNumber=this.value"></div>
+      <div class="dati-row"><div class="dati-label">Valvola:</div><input class="dati-input" value="${escAttr(s.valvola||'')}" onchange="currentScheda.valvola=this.value"></div>
+      <div class="dati-row"><div class="dati-label">DN:</div><input class="dati-input" value="${escAttr(s.dn||'')}" onchange="currentScheda.dn=this.value"></div>
+      <div class="dati-row"><div class="dati-label">Classe:</div><input class="dati-input" value="${escAttr(s.classe||'')}" onchange="currentScheda.classe=this.value"></div>
+      <div class="dati-row"><div class="dati-label">Tipologia:</div><input class="dati-input" value="${escAttr(s.tipologia||'')}" onchange="currentScheda.tipologia=this.value"></div>
+      <div class="dati-row"><div class="dati-label">Serial Number:</div><input class="dati-input" value="${escAttr(s.serialNumber||'')}" placeholder="(opzionale)" onchange="currentScheda.serialNumber=this.value"></div>
     </div>
 
     <div class="section-header">OPERAZIONI EFFETTUATE</div>
@@ -2164,11 +2187,11 @@ function renderScheda(){
       <div class="page-footer-row">
         <div class="page-footer-field">
           <span>Emesso dall'Ufficio Tecnico in data:</span>
-          <input value="${s.footerData||''}" onchange="currentScheda.footerData=this.value" placeholder="gg/mm/aaaa">
+          <input value="${escAttr(s.footerData||'')}" onchange="currentScheda.footerData=this.value" placeholder="gg/mm/aaaa">
         </div>
         <div class="page-footer-field">
           <span>Timbro e Firma:</span>
-          <input value="${s.footerTimbro||''}" onchange="currentScheda.footerTimbro=this.value">
+          <input value="${escAttr(s.footerTimbro||'')}" onchange="currentScheda.footerTimbro=this.value">
         </div>
       </div>
     </div>
@@ -2501,7 +2524,7 @@ function renderSchedaSicurezza(){
   const lettere=['A','B','C','D','E','F','G','H','I','L','M','N','O','P','Q','R','S','T','U','V','Z'];
   const legenda={A:'FLANGIA DI INGRESSO',B:'FLANGIA DI USCITA',C:'FILETTAT. ALLOGGIO SEDE',D:'FLANGIA ACCOPP. CORPO',E:'FLANGIA ACC. CAPPELLO',F:'FLANGIA ACC. CAPPUCCIO',G:'SEDE',H:'GHIERA DI REGISTRAZ.',I:'OTTURATORE',L:'ANELLO ELASTICO',M:'PORTAOTTURATORE',N:'SOFFIETTO',O:'GUIDA STELO',P:'DISCO GUIDAMOLLA',Q:'MOLLA',R:'STELO',S:'VITE DI TARATURA',T:'GHIERA',U:'GUARNIZIONI',V:'VITI DEL CAPPELLO',Z:'VITI DEL CAPPUCCIO'};
 
-  function inp(field,ph,style){return `<input value="${s[field]||''}" onchange="currentScheda['${field}']=this.value" placeholder="${ph||'...'}" style="width:100%;border:none;background:transparent;font-size:8.5px;font-weight:700;${style||''}">`;}
+  function inp(field,ph,style){return `<input value="${escAttr(s[field]||'')}" onchange="currentScheda['${field}']=this.value" placeholder="${ph||'...'}" style="width:100%;border:none;background:transparent;font-size:8.5px;font-weight:700;${style||''}">`;}
   function chkI(field){return `<input type="checkbox" ${s.interventi[field]?'checked':''} onchange="currentScheda.interventi['${field}']=this.checked" style="width:13px;height:13px;cursor:pointer;accent-color:#c0392b;">`;}
 
   // Matrice lavorazioni
@@ -2638,7 +2661,7 @@ function renderSchedaSicurezza(){
   <table class="sic-tbl">
     <tr><th style="width:13%"></th>${lettere.map(l=>`<th class="sic-mhdr">${l}</th>`).join('')}</tr>
     ${matriceRows}
-    <tr><td class="sic-lbl">ALTRO</td><td colspan="21" class="sic-val"><input value="${s.matriceAltro||''}" onchange="currentScheda.matriceAltro=this.value" placeholder="Specificare..." style="width:100%;border:none;background:transparent;font-size:8px;"></td></tr>
+    <tr><td class="sic-lbl">ALTRO</td><td colspan="21" class="sic-val"><input value="${escAttr(s.matriceAltro||'')}" onchange="currentScheda.matriceAltro=this.value" placeholder="Specificare..." style="width:100%;border:none;background:transparent;font-size:8px;"></td></tr>
   </table>
 
   <div class="sic-sh">LEGENDA COMPONENTI</div>
@@ -2651,13 +2674,13 @@ function renderSchedaSicurezza(){
     <div>
       <div class="sic-sh">MATERIALI SOSTITUITI</div>
       <table class="sic-tbl">
-        ${['A','B','C','D','E'].map(l=>`<tr><td class="sic-lbl" style="width:8%">${l}</td><td class="sic-val"><input value="${s.materiali[l]||''}" onchange="currentScheda.materiali['${l}']=this.value" placeholder="..." style="width:100%;border:none;background:transparent;font-size:8px;font-weight:700;"></td></tr>`).join('')}
+        ${['A','B','C','D','E'].map(l=>`<tr><td class="sic-lbl" style="width:8%">${l}</td><td class="sic-val"><input value="${escAttr(s.materiali[l]||'')}" onchange="currentScheda.materiali['${l}']=this.value" placeholder="..." style="width:100%;border:none;background:transparent;font-size:8px;font-weight:700;"></td></tr>`).join('')}
       </table>
     </div>
     <div>
       <div class="sic-sh">INDICAZIONI FERMATA SUCCESSIVA</div>
       <table class="sic-tbl">
-        ${['1','2','3','4','5'].map(n=>`<tr><td class="sic-lbl" style="width:8%">${n}</td><td class="sic-val"><input value="${s.indicazioni[n]||''}" onchange="currentScheda.indicazioni['${n}']=this.value" placeholder="..." style="width:100%;border:none;background:transparent;font-size:8px;font-weight:700;"></td></tr>`).join('')}
+        ${['1','2','3','4','5'].map(n=>`<tr><td class="sic-lbl" style="width:8%">${n}</td><td class="sic-val"><input value="${escAttr(s.indicazioni[n]||'')}" onchange="currentScheda.indicazioni['${n}']=this.value" placeholder="..." style="width:100%;border:none;background:transparent;font-size:8px;font-weight:700;"></td></tr>`).join('')}
       </table>
     </div>
   </div>
@@ -2841,6 +2864,19 @@ async function duplicateScheda(){
     _mySaveIds.delete(copy.id);
     showToast('❌ Errore: ' + e.message, '#c0392b');
   }
+}
+
+// ── ESCAPE HTML per uso sicuro in attributi value="..." ────────────────
+// Converte caratteri speciali in entità HTML per evitare che caratteri come
+// " ' < > & rompano la struttura HTML quando inseriti negli input value.
+function escAttr(s){
+  if(s === null || s === undefined) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 function showToast(msg,color='#27ae60'){
