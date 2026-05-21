@@ -786,6 +786,11 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
       <button class="btn-sm" style="background:#2980b9;" onclick="filterReportByDate()">🔍 Filtra</button>
       <button class="btn-sm outline" onclick="resetReportFilter()">Tutti</button>
     </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;background:white;padding:10px 12px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+      <span style="font-size:12px;font-weight:700;color:#2c3e50;">🔎 Cerca Serial Number:</span>
+      <input type="text" id="report-search-sn" placeholder="es. SN12345" style="border:1px solid #ddd;border-radius:4px;padding:5px 8px;font-size:12px;flex:1;min-width:140px;" oninput="filterReportBySN()">
+      <button class="btn-sm outline" onclick="document.getElementById('report-search-sn').value='';filterReportBySN()">✕ Pulisci</button>
+    </div>
     <div id="report-content"></div>
   </div>
 </div>
@@ -1230,6 +1235,7 @@ function normalizeScheda(s) {
   if(typeof s.dn !== 'string') s.dn = s.dn || '';
   if(typeof s.classe !== 'string') s.classe = s.classe || '';
   if(typeof s.tipologia !== 'string') s.tipologia = s.tipologia || '';
+  if(typeof s.serialNumber !== 'string') s.serialNumber = s.serialNumber || '';
   if(typeof s.completed !== 'boolean') s.completed = false;
   if(!s.completedAt) s.completedAt = null;
   if(!s.completedBy) s.completedBy = null;
@@ -1255,6 +1261,7 @@ function openScheda(id) {
   if(found) {
     currentScheda = normalizeScheda(JSON.parse(JSON.stringify(found)));
     currentScheda._openedAt = new Date().toISOString();
+    _photoSwapIdx = null; // reset selezione swap foto
     showFormScreen();
   }
 }
@@ -1506,6 +1513,7 @@ function upsertReportEntry(s){
     existing.dn = s.dn || existing.dn || '—';
     existing.classe = s.classe || existing.classe || '—';
     existing.tipologia = s.tipologia || existing.tipologia || '—';
+    existing.serialNumber = (typeof s.serialNumber === 'string' ? s.serialNumber : (existing.serialNumber || ''));
     existing.updatedAt = s.updatedAt || existing.updatedAt || '—';
     // Stato completamento: sincronizza sempre con la scheda
     if(s.completed) {
@@ -1526,6 +1534,7 @@ function upsertReportEntry(s){
       dn: s.dn || '—',
       classe: s.classe || '—',
       tipologia: s.tipologia || '—',
+      serialNumber: s.serialNumber || '',
       insertedAt: s.createdAt || s.updatedAt || new Date().toISOString(),
       updatedAt: s.updatedAt || new Date().toISOString(),
       completed: s.completed || false,
@@ -1590,7 +1599,7 @@ function renderReportContent(filteredEntries){
     html += '<div class="report-client-header">👤 ' + cName + ' — ' + entries.length + ' schede</div>';
     // ── TABELLA DESKTOP ──
     html += '<table class="report-table"><thead><tr>';
-    html += '<th>TAG</th><th>Commessa</th><th>Valvola</th><th>DN</th><th>Classe</th><th>Tipologia</th><th>Inserimento</th><th>Completamento</th><th>Stato</th><th></th>';
+    html += '<th>TAG</th><th>Commessa</th><th>Valvola</th><th>S/N</th><th>DN</th><th>Classe</th><th>Tipologia</th><th>Inserimento</th><th>Completamento</th><th>Stato</th><th></th>';
     html += '</tr></thead><tbody>';
     entries.forEach(r => {
       const dataIns = r.insertedAt ? new Date(r.insertedAt).toLocaleDateString('it-IT') : (r.createdAt ? new Date(r.createdAt).toLocaleDateString('it-IT') : '—');
@@ -1600,6 +1609,7 @@ function renderReportContent(filteredEntries){
       html += '<td>' + (r.tag||'—') + '</td>';
       html += '<td>' + (r.commessa||'—') + '</td>';
       html += '<td>' + (r.valvola||'—') + '</td>';
+      html += '<td>' + (r.serialNumber && String(r.serialNumber).trim() ? r.serialNumber : '-') + '</td>';
       html += '<td>' + (r.dn||'—') + '</td>';
       html += '<td>' + (r.classe||'—') + '</td>';
       html += '<td>' + (r.tipologia||'—') + '</td>';
@@ -1623,6 +1633,7 @@ function renderReportContent(filteredEntries){
       html += '<div class="report-card-row"><span class="report-card-label">TAG</span><span class="report-card-value">' + (r.tag||'—') + '</span></div>';
       html += '<div class="report-card-row"><span class="report-card-label">Commessa</span><span class="report-card-value">' + (r.commessa||'—') + '</span></div>';
       html += '<div class="report-card-row"><span class="report-card-label">Valvola</span><span class="report-card-value">' + (r.valvola||'—') + '</span></div>';
+      html += '<div class="report-card-row"><span class="report-card-label">S/N</span><span class="report-card-value">' + (r.serialNumber && String(r.serialNumber).trim() ? r.serialNumber : '-') + '</span></div>';
       html += '<div class="report-card-row"><span class="report-card-label">DN / Classe</span><span class="report-card-value">' + (r.dn||'—') + ' / ' + (r.classe||'—') + '</span></div>';
       html += '<div class="report-card-row"><span class="report-card-label">Tipologia</span><span class="report-card-value">' + (r.tipologia||'—') + '</span></div>';
       html += '<div class="report-card-row"><span class="report-card-label">Inserimento</span><span class="report-card-value">' + dataIns + '</span></div>';
@@ -1665,6 +1676,8 @@ function editReportEntry(id){
       <input type="text" id="rep-edit-classe" value="${(r.classe||'').replace(/"/g,'&quot;')}">
       <label>Tipologia</label>
       <input type="text" id="rep-edit-tipologia" value="${(r.tipologia||'').replace(/"/g,'&quot;')}">
+      <label>Serial Number</label>
+      <input type="text" id="rep-edit-serialNumber" value="${(r.serialNumber||'').replace(/"/g,'&quot;')}" placeholder="(opzionale)">
       <label>Data Inserimento</label>
       <input type="date" id="rep-edit-insertedAt" value="${r.insertedAt ? r.insertedAt.slice(0,10) : (r.createdAt ? r.createdAt.slice(0,10) : '')}">
       <label>Data Completamento</label>
@@ -1698,6 +1711,8 @@ function saveEditReport(id){
   r.dn = document.getElementById('rep-edit-dn').value.trim() || '—';
   r.classe = document.getElementById('rep-edit-classe').value.trim() || '—';
   r.tipologia = document.getElementById('rep-edit-tipologia').value.trim() || '—';
+  const snEl = document.getElementById('rep-edit-serialNumber');
+  if(snEl) r.serialNumber = snEl.value.trim();
   const insDate = document.getElementById('rep-edit-insertedAt').value;
   if(insDate) r.insertedAt = insDate + 'T00:00:00.000Z';
   const compDate = document.getElementById('rep-edit-completedAt').value;
@@ -1736,6 +1751,8 @@ function addManualReportEntry(){
       <input type="text" id="rep-edit-classe" placeholder="">
       <label>Tipologia</label>
       <input type="text" id="rep-edit-tipologia" placeholder="">
+      <label>Serial Number</label>
+      <input type="text" id="rep-edit-serialNumber" placeholder="(opzionale)">
       <label>Data Inserimento</label>
       <input type="date" id="rep-edit-insertedAt">
       <label>Data Completamento</label>
@@ -1767,6 +1784,7 @@ function saveManualReportEntry(uid){
     dn: document.getElementById('rep-edit-dn').value.trim() || '—',
     classe: document.getElementById('rep-edit-classe').value.trim() || '—',
     tipologia: document.getElementById('rep-edit-tipologia').value.trim() || '—',
+    serialNumber: (document.getElementById('rep-edit-serialNumber') ? document.getElementById('rep-edit-serialNumber').value.trim() : ''),
     insertedAt: insDate ? insDate + 'T00:00:00.000Z' : null,
     completedAt: compDate ? compDate + 'T00:00:00.000Z' : (completed ? new Date().toISOString() : null),
     completed: completed,
@@ -1817,8 +1835,26 @@ function filterReportByDate(){
 function resetReportFilter(){
   document.getElementById('report-date-from').value = '';
   document.getElementById('report-date-to').value = '';
+  const snEl = document.getElementById('report-search-sn');
+  if(snEl) snEl.value = '';
   renderReportContent();
   showToast('📊 Report completo','#2980b9');
+}
+
+// ── FILTRO REPORT PER SERIAL NUMBER (ricerca parziale, case-insensitive) ──
+function filterReportBySN(){
+  const inp = document.getElementById('report-search-sn');
+  if(!inp) return;
+  const q = inp.value.trim().toLowerCase();
+  if(q === ''){
+    renderReportContent();
+    return;
+  }
+  const filtered = reportEntries.filter(r => {
+    const sn = (r.serialNumber || '').toLowerCase();
+    return sn.includes(q);
+  });
+  renderReportContent(filtered);
 }
 
 // =================== TEMPLATE EDITOR ===================
@@ -1937,6 +1973,9 @@ function showFormScreen(){
   }
 }
 
+// Indice foto selezionata per swap (null = nessuna selezione)
+let _photoSwapIdx = null;
+
 function buildPhotosGrid(photos){
   if(!photos.length) return '<p style="color:#aaa;font-size:12px;padding:8px;">Nessuna foto allegata</p>';
   let rows='';
@@ -1944,10 +1983,14 @@ function buildPhotosGrid(photos){
     const p1=photos[i], p2=photos[i+1]||null;
     function pCell(p,idx){
       if(!p) return '<td style="width:50%;"></td>';
-      return `<td style="width:50%;padding:6px;text-align:center;vertical-align:bottom;">
+      const isSelected = (_photoSwapIdx === idx);
+      const selStyle = isSelected
+        ? 'outline:3px solid #2980b9;outline-offset:2px;border-radius:6px;background:#eaf3fb;'
+        : '';
+      return `<td style="width:50%;padding:6px;text-align:center;vertical-align:bottom;${selStyle}">
         <div class="photo-cell-wrap">
-          <button class="photo-cell-del" onclick="removePhoto(${idx})">×</button>
-          <img src="${p.dataUrl}" style="max-height:${photoSize}px;max-width:100%;" alt="">
+          <button class="photo-cell-del" onclick="event.stopPropagation();removePhoto(${idx})">×</button>
+          <img src="${p.dataUrl}" style="max-height:${photoSize}px;max-width:100%;cursor:pointer;" onclick="swapPhotoClick(${idx})" alt="" title="Clicca per scambiare di posizione">
         </div>
         <div class="photo-label"><input value="${p.label||'Figura '+(idx+1)}" onchange="currentScheda.photos[${idx}].label=this.value"></div>
       </td>`;
@@ -1955,6 +1998,30 @@ function buildPhotosGrid(photos){
     rows+=`<tr>${pCell(p1,i)}${pCell(p2,i+1)}</tr>`;
   }
   return `<table class="photo-table"><tbody>${rows}</tbody></table>`;
+}
+
+// Gestisce il click per scambiare foto: 1° click = seleziona, 2° click = scambia
+function swapPhotoClick(idx){
+  if(_photoSwapIdx === null){
+    _photoSwapIdx = idx;
+    rerenderPhotos();
+    showToast('🔄 Foto selezionata. Clicca un\'altra foto per scambiarle.','#2980b9');
+  } else if(_photoSwapIdx === idx){
+    _photoSwapIdx = null;
+    rerenderPhotos();
+    showToast('Selezione annullata','#7f8c8d');
+  } else {
+    const a = _photoSwapIdx, b = idx;
+    const photos = currentScheda.photos;
+    if(photos[a] && photos[b]){
+      const tmp = photos[a];
+      photos[a] = photos[b];
+      photos[b] = tmp;
+    }
+    _photoSwapIdx = null;
+    rerenderPhotos();
+    showToast('✅ Foto scambiate','#27ae60');
+  }
 }
 
 function renderScheda(){
@@ -2033,6 +2100,7 @@ function renderScheda(){
       <div class="dati-row"><div class="dati-label">DN:</div><input class="dati-input" value="${s.dn||''}" onchange="currentScheda.dn=this.value"></div>
       <div class="dati-row"><div class="dati-label">Classe:</div><input class="dati-input" value="${s.classe||''}" onchange="currentScheda.classe=this.value"></div>
       <div class="dati-row"><div class="dati-label">Tipologia:</div><input class="dati-input" value="${s.tipologia||''}" onchange="currentScheda.tipologia=this.value"></div>
+      <div class="dati-row"><div class="dati-label">Serial Number:</div><input class="dati-input" value="${s.serialNumber||''}" placeholder="(opzionale)" onchange="currentScheda.serialNumber=this.value"></div>
     </div>
 
     <div class="section-header">OPERAZIONI EFFETTUATE</div>
@@ -3064,6 +3132,26 @@ function buildPageHeader(s, cName){
 </div>`;
 }
 
+// Header specifico per le pagine foto: mostra il NOME VALVOLA al posto del cliente
+function buildPhotoPageHeader(s){
+  return `<div class="doc-header">
+  <div class="doc-header-inner">
+    <div class="doc-header-logo"><img src="${TMS_IMG}" alt="TMS"></div>
+    <div class="doc-header-center">SCHEDA REVISIONE VALVOLE</div>
+    <div class="doc-header-right">
+      <div class="header-right-top">Revalve</div>
+      <div style="font-size:12px;padding:5px 8px;font-weight:600;">ORD: ${s.ord||''}</div>
+    </div>
+  </div>
+  <div class="doc-header-bottom">
+    <div class="header-row"><div class="header-label">Valvola</div><div class="header-value">${s.valvola||''}</div></div>
+    <div class="header-row"><div class="header-value"><span>COMMESSA N°:</span> ${s.commessa||''}</div></div>
+    <div class="header-row"><div class="header-label">Impianto</div><div class="header-value">${s.impianto||''}</div></div>
+    <div class="header-row"><div class="header-value"><span>TAG</span> ${s.tag||''}</div></div>
+  </div>
+</div>`;
+}
+
 function buildPageFooter(s){
   return `<div class="page-footer">
   <div class="page-footer-divline">
@@ -3141,7 +3229,7 @@ function buildExportHTML(){
       const pageLabel = pageCount > 1 ? ' (' + (p+1) + '/' + pageCount + ')' : '';
       photoPagesHTML += `
 <div class="page">
-  ${buildPageHeader(s,cName)}
+  ${buildPhotoPageHeader(s)}
   <div class="section-header">REPORT FOTOGRAFICO${pageLabel}</div>
   <div class="photo-area" style="height:${nRows*cellHeightMm + (nRows-1)*4}mm;">
     ${rowsHTML}
@@ -3187,13 +3275,14 @@ function buildExportHTML(){
     <tr><td>DN:</td><td style="font-weight:700">${s.dn||''}</td></tr>
     <tr><td>Classe:</td><td style="font-weight:700">${s.classe||''}</td></tr>
     <tr><td>Tipologia:</td><td style="font-weight:700">${s.tipologia||''}</td></tr>
+    ${s.serialNumber && s.serialNumber.trim() ? `<tr><td>Serial Number:</td><td style="font-weight:700">${s.serialNumber}</td></tr>` : ''}
   </tbody></table>
   <div class="section-header">OPERAZIONI EFFETTUATE</div>
   <table class="ops"><tbody>${opsRows}</tbody></table>
   <div class="section-header">${s.tenuteLabel.toUpperCase()}</div>
   <table class="tenute"><thead><tr>${tHdr}</tr></thead><tbody>${s.tenute.map(tRowFn).join('')}</tbody></table>
-  <div class="section-header">NOTE</div>
-  <div class="note-box">${noteHTML}</div>
+  ${(s.note && s.note.trim()) ? `<div class="section-header">NOTE</div>
+  <div class="note-box">${noteHTML}</div>` : ''}
   ${buildPageFooter(s)}
 </div>
 
@@ -3411,13 +3500,14 @@ ${headerHTML}
   <tr><td style="background:#f0f0f0;font-weight:bold;border:1px solid #ddd;padding:4pt 8pt;">DN:</td><td style="font-weight:bold;border:1px solid #ddd;padding:4pt 8pt;">${s.dn||''}</td></tr>
   <tr><td style="background:#f0f0f0;font-weight:bold;border:1px solid #ddd;padding:4pt 8pt;">Classe:</td><td style="font-weight:bold;border:1px solid #ddd;padding:4pt 8pt;">${s.classe||''}</td></tr>
   <tr><td style="background:#f0f0f0;font-weight:bold;border:1px solid #ddd;padding:4pt 8pt;">Tipologia:</td><td style="font-weight:bold;border:1px solid #ddd;padding:4pt 8pt;">${s.tipologia||''}</td></tr>
+  ${s.serialNumber && s.serialNumber.trim() ? `<tr><td style="background:#f0f0f0;font-weight:bold;border:1px solid #ddd;padding:4pt 8pt;">Serial Number:</td><td style="font-weight:bold;border:1px solid #ddd;padding:4pt 8pt;">${s.serialNumber}</td></tr>` : ''}
 </table>
 <p class="sh">OPERAZIONI EFFETTUATE</p>
 <table><tbody>${opsRows}</tbody></table>
 <p class="sh">${s.tenuteLabel.toUpperCase()}</p>
 <table><thead><tr>${tHdr}</tr></thead><tbody>${s.tenute.map(tRowFn).join('')}</tbody></table>
-<p class="sh">NOTE</p>
-<div style="border:1px solid #ddd;padding:6pt 10pt;min-height:30pt;">${noteHTML}</div>
+${(s.note && s.note.trim()) ? `<p class="sh">NOTE</p>
+<div style="border:1px solid #ddd;padding:6pt 10pt;min-height:30pt;">${noteHTML}</div>` : ''}
 <br style="mso-break-type:page-break;page-break-before:always;">
 <table style="width:100%;border-collapse:collapse;border:1.5px solid #888;margin-bottom:0;">
   <tr>
