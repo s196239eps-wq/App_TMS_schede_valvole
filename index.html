@@ -791,11 +791,6 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
       <input type="text" id="report-search-sn" placeholder="es. SN12345" style="border:1px solid #ddd;border-radius:4px;padding:5px 8px;font-size:12px;flex:1;min-width:140px;" oninput="filterReportBySN()">
       <button class="btn-sm outline" onclick="document.getElementById('report-search-sn').value='';filterReportBySN()">✕ Pulisci</button>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;background:white;padding:10px 12px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-      <span style="font-size:12px;font-weight:700;color:#2c3e50;">🔎 Cerca Commessa:</span>
-      <input type="text" id="report-search-commessa" placeholder="es. C-2026-001" style="border:1px solid #ddd;border-radius:4px;padding:5px 8px;font-size:12px;flex:1;min-width:140px;" oninput="filterReportByCommessa()">
-      <button class="btn-sm outline" onclick="document.getElementById('report-search-commessa').value='';filterReportByCommessa()">✕ Pulisci</button>
-    </div>
     <div id="report-content"></div>
   </div>
 </div>
@@ -1842,8 +1837,6 @@ function resetReportFilter(){
   document.getElementById('report-date-to').value = '';
   const snEl = document.getElementById('report-search-sn');
   if(snEl) snEl.value = '';
-  const cmEl = document.getElementById('report-search-commessa');
-  if(cmEl) cmEl.value = '';
   renderReportContent();
   showToast('📊 Report completo','#2980b9');
 }
@@ -1860,22 +1853,6 @@ function filterReportBySN(){
   const filtered = reportEntries.filter(r => {
     const sn = (r.serialNumber || '').toLowerCase();
     return sn.includes(q);
-  });
-  renderReportContent(filtered);
-}
-
-// ── FILTRO REPORT PER COMMESSA (ricerca parziale, case-insensitive) ──
-function filterReportByCommessa(){
-  const inp = document.getElementById('report-search-commessa');
-  if(!inp) return;
-  const q = inp.value.trim().toLowerCase();
-  if(q === ''){
-    renderReportContent();
-    return;
-  }
-  const filtered = reportEntries.filter(r => {
-    const cm = (r.commessa || '').toLowerCase();
-    return cm.includes(q);
   });
   renderReportContent(filtered);
 }
