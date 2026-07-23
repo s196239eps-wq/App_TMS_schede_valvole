@@ -2608,6 +2608,7 @@ function renderSchedaSicurezza(){
   if(!s.materiali) s.materiali={A:'',B:'',C:'',D:'',E:''};
   if(!s.indicazioni) s.indicazioni={'1':'','2':'','3':'','4':'','5':''};
   if(!s.labels || typeof s.labels !== 'object') s.labels={};
+  if(!Array.isArray(s.photos)) s.photos=[];
   if(!Array.isArray(s.certPdfPages)) s.certPdfPages=[];
 
   const lettere=['A','B','C','D','E','F','G','H','I','L','M','N','O','P','Q','R','S','T','U','V','Z'];
@@ -2821,12 +2822,16 @@ function renderSchedaSicurezza(){
     <div class="sic-hdr-title">${L('titleFoto')}</div>
     <div class="sic-hdr-schema"><img src="${_imgVedB64}" alt="VED"></div>
   </div>
-  <div class="section-header" style="margin-top:8px;">
-    <span>${L('shFoto')}</span>
-    <button class="btn-sm" onclick="addPhotoSic()">+ Foto</button>
+  <div class="section-header" style="margin-top:8px;">${L('shFoto')}</div>
+  <div class="photo-section">
+    <div class="photo-controls">
+      <button class="btn-sm" onclick="triggerCamera()">\ud83d\udcf7 Fotocamera</button>
+      <input type="file" id="cam-inp" accept="image/*" capture="environment" style="display:none" onchange="addPhotos(this)">
+      <button class="btn-sm outline" onclick="document.getElementById('gal-inp').click()">\ud83d\uddbc\ufe0f Galleria / File</button>
+      <input type="file" id="gal-inp" accept="image/*" multiple style="display:none" onchange="addPhotos(this)">
+    </div>
+    <div id="photo-grid">${photosGrid}</div>
   </div>
-  <input type="file" id="sic-photo-inp" accept="image/*" capture="environment" multiple style="display:none" onchange="handleSicPhotos(this)">
-  ${photosGrid}
 
   <!-- ALLEGATO PDF CERTIFICATO (stesso meccanismo delle altre schede) -->
   <div class="section-header" style="margin-top:12px;">${L('shCert')}</div>
@@ -2847,7 +2852,9 @@ function renderSchedaSicurezza(){
   document.getElementById('scheda-content').innerHTML = html;
 }
 
-function addPhotoSic(){document.getElementById('sic-photo-inp').click();}
+// Retrocompatibilita': l'ex pulsante "+ Foto" ora apre la fotocamera,
+// esattamente come il pulsante Fotocamera delle altre schede.
+function addPhotoSic(){ triggerCamera(); }
 async function handleSicPhotos(input){
   const files=Array.from(input.files);
   if(!files.length) return;
