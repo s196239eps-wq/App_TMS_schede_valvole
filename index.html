@@ -2589,6 +2589,25 @@ function toggleSicEditLabels(){
             _sicEditLabels ? '#e67e22' : '#7f8c8d');
 }
 
+
+// ── STATO DI USURA: valutazione annullabile ──────────────────────────
+// I radio HTML non tornano mai a "nessuna scelta": una volta messo un
+// pallino lo si puo' solo spostare. Qui il clic su un pallino GIA' attivo
+// lo spegne, cosi' una valutazione inserita per errore si puo' togliere.
+// Nota: si usa solo onclick, mai onchange. Il click arriva PRIMA del change,
+// quindi tenere entrambi farebbe riaccendere subito il pallino appena spento.
+function toggleUsura(comp, val, el){
+  if(!currentScheda) return;
+  if(!currentScheda.usura || typeof currentScheda.usura !== 'object') currentScheda.usura = {};
+  if(currentScheda.usura[comp] === val){
+    currentScheda.usura[comp] = '';   // stessa voce ricliccata -> annulla
+    el.checked = false;
+  } else {
+    currentScheda.usura[comp] = val;  // voce diversa -> sposta la scelta
+    el.checked = true;
+  }
+}
+
 function resetSicLabels(){
   if(!currentScheda) return;
   if(!confirm('Ripristinare TUTTE le etichette originali di questa scheda?\n\nI dati inseriti NON vengono toccati.')) return;
@@ -2637,7 +2656,7 @@ function renderSchedaSicurezza(){
 
   // Radio stato usura
   function radioU(comp){
-    return ['buono','discreto','pessimo'].map(v=>`<td style="text-align:center"><input type="radio" name="u_${comp}" ${s.usura[comp]===v?'checked':''} onchange="currentScheda.usura['${comp}']='${v}'" style="width:14px;height:14px;cursor:pointer;accent-color:#c0392b;"></td>`).join('');
+    return ['buono','discreto','pessimo'].map(v=>`<td style="text-align:center"><input type="radio" name="u_${comp}" ${s.usura[comp]===v?'checked':''} onclick="toggleUsura('${comp}','${v}',this)" title="Clicca di nuovo sullo stesso pallino per annullare la valutazione" style="width:14px;height:14px;cursor:pointer;accent-color:#c0392b;"></td>`).join('');
   }
 
   // Legenda table (4 colonne)
