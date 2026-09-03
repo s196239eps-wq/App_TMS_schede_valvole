@@ -561,7 +561,7 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
     <div class="top-bar-actions">
       <button class="btn-sm" id="btn-completa" onclick="toggleCompleted()" style="background:#f39c12;">📋 Completa</button>
       <button class="btn-sm success" onclick="saveScheda()">💾 Salva</button>
-      <button class="btn-sm" style="background:#27ae60;" onclick="saveToCloud()">☁️ Cloud</button>
+      <button class="btn-sm" style="background:#27ae60;" onclick="saveToCloud()">☁️ Cloud</button><span id="auto-cloud-badge" title="Salvataggio automatico sul cloud" style="font-size:11px;font-weight:700;color:#7f8c8d;align-self:center;min-width:34px;text-align:center;white-space:nowrap;"></span>
       <button class="btn-sm" style="background:#8e44ad;" onclick="duplicateScheda()">📋 Duplica</button>
       <button class="btn-sm" onclick="openModal('share-modal')">📤 Esporta</button>
       <button class="btn-sm outline" onclick="document.getElementById('import-file-inp').click()" title="Importa altra scheda">📂</button>
@@ -1330,6 +1330,8 @@ async function deleteScheda(id) {
   renderHome();
 }
 function goHome() {
+  // Salva sul cloud le ultime modifiche prima di uscire (se ce ne sono in coda)
+  if(_autoCloudTimer){ runAutoCloudNow(); }
   document.getElementById('form-screen').style.display='none';
   document.getElementById('home-screen').style.display='flex';
   renderHome();
@@ -1997,6 +1999,8 @@ function showFormScreen(){
   } else {
     renderScheda();
   }
+  _wireAutoCloud();               // attiva il salvataggio cloud automatico
+  _setAutoCloudStatus('');        // azzera l'indicatore all'apertura
 }
 
 // Indice foto selezionata per swap (null = nessuna selezione)
@@ -4438,19 +4442,44 @@ async function deleteCloudScheda(id) {
 }
 
 // ── SALVA scheda sul cloud ──────────────────────────────────────────
+// Salvataggio manuale sul cloud (pulsante ☁️ Cloud): invariato nel
+// comportamento — chiede il nome se manca, mostra i messaggi e chiude
+// la finestra Esporta. Ora e' un piccolo involucro su _cloudSaveCore.
 async function saveToCloud() {
+  await _cloudSaveCore({ silent:false });
+  closeModal('share-modal');
+}
+
+// ── SALVATAGGIO CLOUD AUTOMATICO ─────────────────────────────────────
+// Stessa identica logica di merge/meta/full del salvataggio manuale.
+// In modalita' silent (auto): niente prompt del nome (usa quello salvato
+// o "Utente"), niente toast rumorosi, non chiude nessuna finestra.
+// Il salvataggio LOCALE (💾 Salva) resta manuale: qui non si tocca.
+let _cloudSaving = false;
+
+async function _cloudSaveCore(opts){
+  opts = opts || {};
+  const silent = !!opts.silent;
   collectNote();
   const s = currentScheda;
+  if(!s || !s.id) return;
 
   let userName = localStorage.getItem('tms_username') || '';
   if(!userName) {
-    userName = prompt('Il tuo nome (visibile agli altri utenti):', '') || 'Utente';
-    localStorage.setItem('tms_username', userName);
+    if(silent){
+      // In automatico non blocchiamo l'operatore con un popup: salviamo
+      // con un nome provvisorio. Al primo salvataggio manuale potra' scegliere il suo.
+      userName = 'Utente';
+    } else {
+      userName = prompt('Il tuo nome (visibile agli altri utenti):', '') || 'Utente';
+      localStorage.setItem('tms_username', userName);
+    }
   }
 
   const now = new Date().toISOString();
 
-  showToast('⏳ Salvataggio cloud...','#2980b9');
+  if(!silent) showToast('⏳ Salvataggio cloud...','#2980b9');
+  if(silent) _setAutoCloudStatus('saving');
   _mySaveIds.add(s.id);
   try {
     // ── MERGE: leggi versione cloud prima di sovrascrivere ──
@@ -4462,7 +4491,7 @@ async function saveToCloud() {
        new Date(remote.updatedAt) > new Date(s._openedAt)) {
       // Il cloud è stato aggiornato DA UN ALTRO OPERATORE dopo che noi abbiamo aperto la scheda
       merged = mergeSchede(s, remote, userName);
-      showToast('🔄 Merge con modifiche di ' + (remote._savedBy||'altro operatore'),'#2980b9');
+      if(!silent) showToast('🔄 Merge con modifiche di ' + (remote._savedBy||'altro operatore'),'#2980b9');
     } else {
       merged = {...s};
     }
@@ -4494,14 +4523,80 @@ async function saveToCloud() {
     currentScheda = normalizeScheda(JSON.parse(JSON.stringify(merged)));
     currentScheda._openedAt = now;
 
-    showToast('✅ Salvata sul cloud! Visibile a tutti.','#27ae60');
+    if(!silent) showToast('✅ Salvata sul cloud! Visibile a tutti.','#27ae60');
+    if(silent) _setAutoCloudStatus('saved');
     await syncFromCloud();
     setTimeout(()=>{ _mySaveIds.delete(s.id); }, 5000);
   } catch(e) {
     _mySaveIds.delete(s.id);
-    showToast('❌ Firebase: ' + e.message, '#c0392b');
+    if(!silent) showToast('❌ Firebase: ' + e.message, '#c0392b');
+    if(silent) _setAutoCloudStatus('error');
   }
-  closeModal('share-modal');
+}
+
+// Debounce: raggruppa le modifiche ravvicinate in un solo salvataggio.
+let _autoCloudTimer = null;
+const AUTO_CLOUD_DELAY_MS = 2500;
+
+function scheduleAutoCloud(){
+  // Solo quando c'e' una scheda aperta e siamo nella schermata di compilazione
+  const form = document.getElementById('form-screen');
+  if(!form || form.style.display === 'none') return;
+  if(!currentScheda || !currentScheda.id) return;
+
+  _setAutoCloudStatus('pending');
+  if(_autoCloudTimer) clearTimeout(_autoCloudTimer);
+  _autoCloudTimer = setTimeout(runAutoCloudNow, AUTO_CLOUD_DELAY_MS);
+}
+
+async function runAutoCloudNow(){
+  if(_autoCloudTimer){ clearTimeout(_autoCloudTimer); _autoCloudTimer = null; }
+  if(_cloudSaving) {
+    // un salvataggio e' gia' in corso: riprova tra poco
+    _autoCloudTimer = setTimeout(runAutoCloudNow, 1200);
+    return;
+  }
+  const form = document.getElementById('form-screen');
+  if(!form || form.style.display === 'none') return;
+  if(!currentScheda || !currentScheda.id) return;
+  _cloudSaving = true;
+  try { await _cloudSaveCore({ silent:true }); }
+  finally { _cloudSaving = false; }
+}
+
+// Piccolo indicatore di stato accanto al pulsante Cloud (non invasivo).
+function _setAutoCloudStatus(state){
+  const el = document.getElementById('auto-cloud-badge');
+  if(!el) return;
+  const map = {
+    pending: ['\u23f3 mod.',      '#7f8c8d'],
+    saving:  ['\u2601\ufe0f\u2026', '#2980b9'],
+    saved:   ['\u2601\ufe0f ok',   '#27ae60'],
+    error:   ['\u26a0\ufe0f',      '#c0392b']
+  };
+  const v = map[state] || ['', '#7f8c8d'];
+  el.textContent = v[0];
+  el.style.color = v[1];
+  el.title = state === 'error'
+    ? 'Salvataggio automatico sul cloud non riuscito — usa il pulsante ☁️ Cloud'
+    : 'Salvataggio automatico sul cloud';
+  if(state === 'saved'){
+    clearTimeout(el._t);
+    el._t = setTimeout(()=>{ if(el.textContent==='\u2601\ufe0f ok') el.textContent=''; }, 4000);
+  }
+}
+
+// Listener unico e delegato: intercetta ogni modifica dei campi della
+// scheda senza dover toccare i singoli onchange gia' esistenti.
+let _autoCloudWired = false;
+function _wireAutoCloud(){
+  if(_autoCloudWired) return;
+  const box = document.getElementById('scheda-content');
+  if(!box) return;
+  const handler = () => scheduleAutoCloud();
+  box.addEventListener('input',  handler, true);
+  box.addEventListener('change', handler, true);
+  _autoCloudWired = true;
 }
 
 // ── MERGE INTELLIGENTE per lavoro simultaneo ────────────────────────
