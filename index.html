@@ -4335,14 +4335,70 @@ function updateCloudUI() {
 }
 
 // ── Firebase REST helpers ───────────────────────────────────────────
-async function fbGet(path) {
-  const resp = await fetch(_fbUrl(path), {method:'GET'});
+async function fbGet(path, extraQS) {
+  const resp = await _fbFetch(path, {method:'GET'}, extraQS);
   if(!resp.ok) throw new Error('Firebase GET error: ' + resp.status);
   return resp.json();
 }
 
+// ── AUTOGUARIGIONE AUTENTICAZIONE (evita gli errori 401) ────────────
+// Il database richiede il token di sessione (?auth=...). Il token puo'
+// non essere ancora pronto all'avvio, oppure scadere dopo ~1h o mentre
+// il telefono resta a lungo bloccato: in quei casi la richiesta tornava
+// 401 e serviva ricaricare a mano. Qui il token viene atteso quando serve
+// e rinnovato automaticamente con un solo nuovo tentativo, in modo
+// trasparente — l'operatore non vede piu' l'errore.
+let _fbNoAuthMode = false;        // true solo se manca del tutto il sistema auth
+let _sseRebuildScheduled = false; // evita ricostruzioni multiple dello stream
+
+// Recupera un token fresco dall'utente firmato (force = ignora la cache)
+async function _refreshAuthToken(force){
+  try{
+    if(typeof firebase === 'undefined' || !firebase.auth) return null;
+    const u = firebase.auth().currentUser;
+    if(!u) return null;
+    _fbAuthToken = await u.getIdToken(!!force);
+    _fbAuthReady = true;
+    return _fbAuthToken;
+  }catch(e){ return null; }
+}
+
+// Attende (al massimo maxMs) che il token diventi disponibile all'avvio
+async function _waitForAuth(maxMs){
+  if(_fbAuthToken) return _fbAuthToken;
+  if(_fbNoAuthMode) return null;
+  const start = Date.now();
+  while(!_fbAuthToken && (Date.now() - start) < (maxMs || 4000)){
+    if(typeof firebase !== 'undefined' && firebase.auth){
+      const u = firebase.auth().currentUser;
+      if(u){
+        try{ _fbAuthToken = await u.getIdToken(false); _fbAuthReady = true; }catch(e){}
+        if(_fbAuthToken) break;
+      }
+    }
+    await new Promise(r => setTimeout(r, 120));
+  }
+  // Se il sistema di auth non esiste proprio, non aspettare piu' in futuro
+  if(!_fbAuthToken && (typeof firebase === 'undefined' || !firebase.auth)) _fbNoAuthMode = true;
+  return _fbAuthToken;
+}
+
+// Fetch verso Firebase con attesa del token e UN retry automatico su 401/403
+async function _fbFetch(path, options, extraQS){
+  if(!_fbAuthToken && !_fbNoAuthMode) await _waitForAuth(5000);
+  let resp = await fetch(_fbUrl(path, extraQS), options);
+  if(resp.status === 401 || resp.status === 403){
+    // token scaduto o non ancora valido: forza un token nuovo e riprova una volta
+    const fresh = await _refreshAuthToken(true);
+    if(fresh){
+      resp = await fetch(_fbUrl(path, extraQS), options);
+    }
+  }
+  return resp;
+}
+
 async function fbPut(path, data) {
-  const resp = await fetch(_fbUrl(path), {
+  const resp = await _fbFetch(path, {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(data)
@@ -4352,7 +4408,7 @@ async function fbPut(path, data) {
 }
 
 async function fbDelete(path) {
-  const resp = await fetch(_fbUrl(path), {method:'DELETE'});
+  const resp = await _fbFetch(path, {method:'DELETE'});
   if(!resp.ok) throw new Error('Firebase DELETE error: ' + resp.status);
   return resp.json();
 }
@@ -4706,9 +4762,12 @@ let _sseSource = null;
 let _sseFirstDumpDone = false;
 let _mySaveIds = new Set();
 
-function startRealtimeSync() {
+async function startRealtimeSync() {
   // Chiudi eventuale connessione precedente
   if(_sseSource) { _sseSource.close(); _sseSource = null; }
+
+  // Assicura un token prima di aprire lo stream (evita 401 in tempo reale)
+  await _waitForAuth(6000);
 
   // SSE URL: include token auth se disponibile (per quando le Rules saranno chiuse)
   let sseUrl = FB_BASE + '/meta.json?format=export&Accept=text/event-stream';
@@ -4810,7 +4869,16 @@ function startRealtimeSync() {
 
     _sseSource.onerror = function() {
       setDot('yellow', '⚡ Riconnessione...');
-      // EventSource si riconnette automaticamente — nessuna azione necessaria
+      // Un errore qui è spesso un token scaduto: l'auto-reconnect riuserebbe
+      // lo stesso token. Rinnoviamo il token e ricostruiamo lo stream una volta.
+      if(_sseRebuildScheduled) return;
+      _sseRebuildScheduled = true;
+      setTimeout(async ()=>{
+        _sseRebuildScheduled = false;
+        try{ await _refreshAuthToken(true); }catch(e){}
+        try{ if(_sseSource){ _sseSource.close(); _sseSource = null; } }catch(e){}
+        startRealtimeSync();
+      }, 5000);
     };
 
     _sseSource.onopen = function() {
