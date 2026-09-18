@@ -2403,9 +2403,17 @@ function removePhoto(i){
   currentScheda.photos.splice(i,1);
   rerenderPhotos();
 }
+
+// Attiva il salvataggio cloud automatico dopo una modifica ai media
+// (foto o PDF), che non passa dagli eventi input/change dei campi.
+function _autoCloudAfterMedia(){
+  try{ if(typeof scheduleAutoCloud === 'function') scheduleAutoCloud(); }catch(e){}
+}
+
 function rerenderPhotos(){
   const g=document.getElementById('photo-grid');
   if(g) g.innerHTML=buildPhotosGrid(currentScheda.photos);
+  _autoCloudAfterMedia();   // salva sul cloud anche l'aggiunta/rimozione foto
 }
 
 // ── PDF CERTIFICATO ──────────────────────────────────────────────────
@@ -2484,6 +2492,7 @@ async function attachCertPdf(input){
       controls.appendChild(delBtn);
     }
     showToast('\u2705 PDF certificato allegato (' + numPages + ' pagine)!','#27ae60');
+    _autoCloudAfterMedia();   // salva sul cloud il PDF appena allegato
   }catch(e){
     console.error('Errore PDF certificato:', e);
     showToast('\u274c Errore elaborazione PDF','#c0392b');
@@ -2494,6 +2503,7 @@ function removeCertPdf(){
   if(!confirm('Rimuovere il PDF certificato allegato?')) return;
   currentScheda.certPdfBase64 = null;
   currentScheda.certPdfPages = [];
+  _autoCloudAfterMedia();   // salva sul cloud anche la rimozione del PDF
   const statusEl = document.getElementById('cert-pdf-status');
   if(statusEl) statusEl.innerHTML = '<span style="color:#aaa;">Nessun PDF certificato allegato</span>';
   const delBtn = document.getElementById('btn-remove-cert-pdf');
@@ -2939,6 +2949,7 @@ async function handleSicPhotos(input){
     }
   }
   renderSchedaSicurezza();
+  _autoCloudAfterMedia();   // salva sul cloud le nuove foto della scheda sicurezza
   if(errCount === 0){
     showToast('✅ '+okCount+' foto aggiunt'+(okCount===1?'a':'e'),'#27ae60');
   } else {
