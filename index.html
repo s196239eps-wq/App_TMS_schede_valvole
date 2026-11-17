@@ -542,6 +542,17 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #222; min-hei
     <div id="cloud-actions" style="display:none;"></div>
   </div>
 
+  <!-- FILTRO SCHEDE -->
+  <div class="saved-list" style="margin-top:16px;">
+    <div style="position:relative;">
+      <input id="home-filter" type="search" inputmode="search" autocomplete="off"
+             placeholder="🔎 Cerca per nome, valvola, TAG…"
+             oninput="setHomeFilter(this.value)"
+             style="width:100%;box-sizing:border-box;padding:10px 12px;border:2px solid #c0392b;border-radius:8px;font-size:14px;outline:none;background:#fff;">
+    </div>
+    <div id="home-filter-count" style="display:none;font-size:11px;color:#888;margin-top:4px;padding-left:2px;"></div>
+  </div>
+
   <!-- SCHEDE IN CLOUD -->
   <div class="cloud-section-title" id="cloud-list-title" style="display:none;">☁️ Schede nel Cloud (condivise)</div>
   <div class="saved-list" id="cloud-list" style="display:none;"></div>
@@ -1116,13 +1127,62 @@ function newSchedaData(clientId, clientName, type) {
 }
 
 // =================== HOME ===================
+// ── FILTRO HOME (ricerca schede per nome/iniziale) ───────────────────
+// Filtra SIA la lista cloud SIA quella locale, senza modificare i dati:
+// agisce solo su cosa viene mostrato. Testo normalizzato (minuscole +
+// accenti rimossi) e confrontato come sottostringa, così "e", "eco" e
+// "ECOSESTO" trovano tutte le schede ECOSESTO.
+let _homeFilter = '';   // testo grezzo digitato dall'utente
+
+function _homeNorm(v){
+  return (v==null ? '' : String(v))
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'');
+}
+
+// true se la scheda corrisponde al filtro corrente (o se il filtro è vuoto)
+function _schedaMatchesHomeFilter(s){
+  const q = _homeNorm(_homeFilter).trim();
+  if(!q) return true;
+  const hay = _homeNorm(
+    (s.clientName||'') + ' ' + (s.valvola||'') + ' ' + (s.tag||'') + ' ' +
+    (s.ord||'') + ' ' + (s.impianto||'') + ' ' + (s.commessa||'')
+  );
+  // tutte le parole digitate devono comparire (ricerca AND)
+  return q.split(/\s+/).every(w => hay.indexOf(w) !== -1);
+}
+
+// Applica il filtro: ridisegna entrambe le liste e aggiorna il contatore
+function setHomeFilter(v){
+  _homeFilter = v || '';
+  renderHome();
+  if(typeof renderCloudList === 'function') renderCloudList();
+  _updateHomeFilterCount();
+}
+
+function _updateHomeFilterCount(){
+  const el = document.getElementById('home-filter-count');
+  if(!el) return;
+  if(!_homeFilter.trim()){ el.style.display='none'; el.textContent=''; return; }
+  let nLoc = 0, nCloud = 0;
+  try{ nLoc = savedSchedeList.filter(_schedaMatchesHomeFilter).length; }catch(e){}
+  try{ if(typeof cloudSchedeList!=='undefined') nCloud = cloudSchedeList.filter(_schedaMatchesHomeFilter).length; }catch(e){}
+  el.style.display='block';
+  el.textContent = '🔎 ' + nCloud + ' cloud · ' + nLoc + ' local' + (nLoc===1?'e':'i') + ' per «' + _homeFilter.trim() + '»';
+}
+
 function renderHome() {
   const list = document.getElementById('saved-list');
   if(!savedSchedeList.length) {
     list.innerHTML='<div style="text-align:center;color:#aaa;font-size:13px;margin-top:20px;">Nessuna scheda salvata</div>';
     return;
   }
-  list.innerHTML = savedSchedeList.map(s=>{
+  const _rows = savedSchedeList.filter(_schedaMatchesHomeFilter);
+  if(!_rows.length) {
+    list.innerHTML='<div style="text-align:center;color:#aaa;font-size:13px;margin-top:20px;">Nessuna scheda locale per «'+escAttr(_homeFilter.trim())+'»</div>';
+    return;
+  }
+  list.innerHTML = _rows.map(s=>{
     const d=new Date(s.createdAt).toLocaleDateString('it');
     return `<div class="saved-item">
       <div class="saved-item-info" onclick="openScheda('${s.id}')">
@@ -4455,7 +4515,12 @@ function renderCloudList() {
     list.innerHTML = '<div style="text-align:center;color:#aaa;font-size:13px;padding:10px;">Nessuna scheda nel cloud</div>';
     return;
   }
-  list.innerHTML = cloudSchedeList.map(s => {
+  const _rows = cloudSchedeList.filter(_schedaMatchesHomeFilter);
+  if(!_rows.length) {
+    list.innerHTML = '<div style="text-align:center;color:#aaa;font-size:13px;padding:10px;">Nessuna scheda cloud per «'+escAttr(_homeFilter.trim())+'»</div>';
+    return;
+  }
+  list.innerHTML = _rows.map(s => {
     const d = s.updatedAt ? new Date(s.updatedAt).toLocaleString('it') : '—';
     const isLocal = savedSchedeList.some(x => x.id === s.id);
     return `<div class="saved-item" style="border-left:3px solid #27ae60;">
